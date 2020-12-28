@@ -11,6 +11,52 @@ class Graph:
         self.edges = defaultdict(set)
 
 
+    @classmethod
+    def from_dict(cls, dict_):
+        """
+        Create a new Graph object from a dictionary
+
+        :param dict_ : dictionary of vertices (keys) to sets of vertices (values)
+        :return : new Graph instance
+        """
+        g = cls()
+        g.edges.update({k:set(v) for k, v in dict_.items()})
+        vertices = list(g.edges.keys())
+        for v in vertices:
+            for u in g.edges[v]:
+                g.add_vertex(u)  # make sure that all the vertices of the graph are in the adjacency list:
+                            # without this step, a sink node wouldn't appear in g.edges
+        return g
+
+
+    @property
+    def n_vertices_(self):
+        """
+        Read-only property, number of vertices in the graph
+        """
+        return len(self.edges)
+
+
+    @property
+    def n_edges_(self):
+        """
+        Read-only property, number of edges in the graph
+        """
+        n = 0
+        for v in self.edges:
+            n += len(self.edges[v]) 
+        return n
+
+
+    @property
+    def density_(self):
+        """
+        Read-only property, density of the graph: |E| / [ |V| * (|V| - 1) ]
+        """
+        n_v = self.n_vertices_
+        return round(self.n_edges_ / (n_v * (n_v - 1)), 3)
+
+
     def get_vertices(self):
         """
         Get the vertices of the graph
@@ -57,20 +103,3 @@ class Graph:
         Represent the graph as a string of tuples
         """
         return str(self.get_edges())
-
-
-
-g = Graph()
-
-g.add_edge(1, 5)
-g.add_edge(1, 3)
-g.add_edge(1, 9)
-g.add_edge(1, 2)
-g.add_edge(3, 5)
-g.add_edge(2, 5)
-g.add_edge(2, 5)
-
-g.add_vertex(0)
-
-print(g)
-print(g.get_vertices())
