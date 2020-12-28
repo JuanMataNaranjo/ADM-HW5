@@ -1,4 +1,4 @@
-
+from collections import defaultdict
 
 class Graph:
     
@@ -8,7 +8,7 @@ class Graph:
 
         :attribute edges : dictionary of vertices (keys) to sets of vertices (values)
         """
-        self.edges = {}
+        self.edges = defaultdict(set)
 
 
     def get_vertices(self):
@@ -17,7 +17,7 @@ class Graph:
 
         :return : list of vertices
         """
-        return self.edges.keys()
+        return list(self.edges.keys())
 
     
     def get_edges(self):
@@ -38,10 +38,7 @@ class Graph:
 
         :return : 
         """
-        try:
-            self.edges[v].add(u)
-        except:
-            self.edges[v] = set([u,]) # set of vertices or list of vertices?
+        self.edges[v].add(u)
 
     
     def add_vertex(self, v): 
@@ -52,8 +49,7 @@ class Graph:
         
         :return : 
         """
-        if v not in self.edges:
-            self.edges[v] = []
+        self.edges[v]
 
 
     def __repr__(self):
@@ -77,3 +73,4 @@ g.add_edge(2, 5)
 g.add_vertex(0)
 
 print(g)
+print(g.get_vertices())
