@@ -41,7 +41,7 @@ class Graph:
         try:
             self.edges[v].add(u)
         except:
-            self.edges[v] = set([u,])
+            self.edges[v] = set([u,]) # set of vertices or list of vertices?
 
     
     def add_vertex(self, v): 
