@@ -98,14 +98,15 @@ class Graph:
         """
         return str(self.get_edges())
 
-    def plot_graph(self, with_labels=True):
+    def plot_graph(self, graph, with_labels=True):
         """
         Method to visualize graph or sub_graph
 
+        :param graph: graph to be visualized
+        :param with_labels: bool to add labels or not
         :return: Plot
         """
-
-        g = nx.DiGraph(self.edges)
+        g = nx.DiGraph(graph)
         plt.figure(figsize=(12, 8))
         plt.clf()
         nx.draw(g, with_labels=with_labels)
@@ -160,3 +161,18 @@ class Graph:
 
         # Return the unique pages
         return set(pages_seen)
+
+    # TODO:  Use class methods to  construct new induced-subgraph. Issue is that the methods construct over the 
+    #  self.edge and we don't  want that
+    def generate_induced_subgraph(self, vertices):
+        """
+        Given a set of vertices, compute it's induced subgraph
+
+        :param vertices: Set of vertices
+        :return: Induced sub_graph
+        """
+        induced_subgraph = defaultdict(set)
+
+        for vertex in vertices:
+            induced_subgraph[vertex] = vertices.intersection(self.edges[vertex])
+        return induced_subgraph
