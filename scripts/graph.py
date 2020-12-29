@@ -8,7 +8,7 @@ class Graph:
 
         :attribute edges : dictionary of vertices (keys) to sets of vertices (values)
         """
-        self.edges = defaultdict(set)
+        self._edges = defaultdict(set)
 
 
     @classmethod
@@ -20,12 +20,12 @@ class Graph:
         :return : new Graph instance
         """
         g = cls()
-        g.edges.update({k:set(v) for k, v in dict_.items()})
-        vertices = list(g.edges.keys())
+        g._edges.update({k:set(v) for k, v in dict_.items()})
+        vertices = list(g._edges.keys())
         for v in vertices:
-            for u in g.edges[v]:
-                g.add_vertex(u)  # make sure that all the vertices of the graph are in the adjacency list:
-                            # without this step, a sink node wouldn't appear in g.edges
+            for u in g._edges[v]:
+                g.add_vertex(u)     # make sure that all the vertices of the graph are in the adjacency list:
+                                    # without this step, a sink node wouldn't appear in g._edges
         return g
 
 
@@ -34,7 +34,7 @@ class Graph:
         """
         Read-only property, number of vertices in the graph
         """
-        return len(self.edges)
+        return len(self._edges)
 
 
     @property
@@ -43,8 +43,8 @@ class Graph:
         Read-only property, number of edges in the graph
         """
         n = 0
-        for v in self.edges:
-            n += len(self.edges[v]) 
+        for v in self._edges:
+            n += len(self._edges[v]) 
         return n
 
 
@@ -57,13 +57,47 @@ class Graph:
         return round(self.n_edges_ / (n_v * (n_v - 1)), 3)
 
 
+    def in_degree(self, v):
+        """
+        Compute the in-degree of a node v
+
+        :param v : a node of the graph
+        :return in_d : int
+        """
+        in_d = 0
+        for u in self._edges:
+            if v in self._edges[u]:
+                in_d += 1
+        return in_d
+
+
+    def out_degree(self, v):
+        """
+        Compute the out-degree of a node v
+
+        :param v : a node of the graph
+        :return  : int
+        """
+        return len(self._edges[v])
+
+
+    def degree(self, v):
+        """
+        Compute the degree of a node v
+
+        :param v : a node of the graph
+        :return  : int
+        """
+        return self.in_degree(v) + self.out_degree(v)
+
+
     def get_vertices(self):
         """
         Get the vertices of the graph
 
         :return : list of vertices
         """
-        return list(self.edges.keys())
+        return list(self._edges.keys())
 
     
     def get_edges(self):
@@ -72,7 +106,7 @@ class Graph:
 
         :return : list of (source, destination) tuples
         """
-        return [(v, u) for v in self.edges.keys() for u in self.edges[v]]
+        return [(v, u) for v in self._edges.keys() for u in self._edges[v]]
 
 
     def add_edge(self, v, u):
@@ -84,7 +118,7 @@ class Graph:
 
         :return : 
         """
-        self.edges[v].add(u)
+        self._edges[v].add(u)
 
     
     def add_vertex(self, v): 
@@ -95,11 +129,11 @@ class Graph:
         
         :return : 
         """
-        self.edges[v]
+        self._edges[v]
 
 
     def __repr__(self):
         """
-        Represent the graph as a string of tuples
+        Represent the graph as the list of its edges
         """
         return str(self.get_edges())
