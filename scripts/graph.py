@@ -1,11 +1,12 @@
-from collections import defaultdict, Counter
-import functionality as fn
-import plotly.express as plty
+from collections import Counter, defaultdict, deque
+
+import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
 import pandas as pd
-import networkx as nx
-import matplotlib.pyplot as plt
-from collections import deque
+import plotly.express as plty
+
+import functionality as fn
 
 
 class Graph:
@@ -37,12 +38,14 @@ class Graph:
                                     # without this step, a sink node wouldn't appear in g._edges
         return g
 
+
     @property
     def n_vertices_(self):
         """
         Read-only property, number of vertices in the graph
         """
         return len(self._edges)
+
 
     @property
     def n_edges_(self):
@@ -54,6 +57,7 @@ class Graph:
             n += len(self._edges[v]) 
         return n
 
+
     @property
     def density_(self):
         """
@@ -61,6 +65,7 @@ class Graph:
         """
         n_v = self.n_vertices_
         return np.format_float_scientific(self.n_edges_ / (n_v * (n_v - 1)), precision=3)
+
 
     def get_vertices(self):
         """
@@ -70,6 +75,7 @@ class Graph:
         """
         return list(self._edges.keys())
 
+
     def get_edges(self):
         """
         Get the edges of the graph
@@ -77,6 +83,7 @@ class Graph:
         :return : list of (source, destination) tuples
         """
         return [(v, u) for v in self._edges.keys() for u in self._edges[v]]
+
 
     def add_edge(self, v, u):
         """
@@ -88,6 +95,7 @@ class Graph:
         :return : 
         """
         self._edges[v].add(u)
+
 
     def add_vertex(self, v):
         """
@@ -179,11 +187,13 @@ class Graph:
                             x='Degree', y='Normalized number of nodes', title='Degree distribution')
         fig.show()
 
+
     def __repr__(self):
         """
         Represent the graph as the list of its edges
         """
         return str(self.get_edges())
+
 
     @staticmethod
     def plot_graph(graph, with_labels=True, node_size=100):
@@ -199,7 +209,8 @@ class Graph:
         plt.figure(figsize=(12, 8))
         plt.clf()
         nx.draw(g, with_labels=with_labels, node_size=node_size)
-        plt.show();
+        plt.show()
+
 
     def pages_in_click(self, initial_page, num_clicks, print_=False):
         """
@@ -231,8 +242,8 @@ class Graph:
                 if print_:
                     print(node)
                 # If a given node has target node, include the out-nodes into the new_queue list
-                if bool(self.edges[node]):
-                    new_queue.update(self.edges[node])
+                if bool(self._edges[node]):
+                    new_queue.update(self._edges[node])
                 # If a given node has no target node, include it in the last_nodes list (this list will not be used to)
                 # for further inspection but we will have to consider it as an article that has been seen
                 else:
@@ -252,6 +263,7 @@ class Graph:
         # Return the unique pages
         return set(pages_visited)
 
+
     # TODO:  Use class methods to  construct new induced-subgraph. Issue is that the methods construct over the 
     #  self.edge and we don't  want that
     # TODO: See how to return the new class
@@ -264,9 +276,10 @@ class Graph:
         """
         induced_subgraph = defaultdict(set)
         for vertex in vertices:
-            induced_subgraph[vertex] = vertices.intersection(self.edges[vertex])
+            induced_subgraph[vertex] = vertices.intersection(self._edges[vertex])
 
         return Graph(induced_subgraph)
+
 
     # TODO: probably not needed method
     def bfs(self, start):
@@ -283,10 +296,11 @@ class Graph:
             node = queue.popleft()
             if node not in visited:
                 visited.update([node])
-                neighbours = self.edges[node]
+                neighbours = self._edges[node]
                 for neighbour in neighbours:
                     queue.append(neighbour)
         return visited
+
 
     def min_cut(self, article1, article2):
         """
