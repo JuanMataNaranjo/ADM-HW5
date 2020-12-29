@@ -1,6 +1,7 @@
 from collections import defaultdict
 import networkx as nx
 import matplotlib.pyplot as plt
+from collections import deque
 
 
 class Graph:
@@ -10,8 +11,10 @@ class Graph:
         Initialize the Graph object
 
         :attribute edges : dictionary of vertices (keys) to sets of vertices (values)
+        :attribute induced_subgraph:
         """
         self.edges = defaultdict(set)
+        #self.induced_subgraph = defaultdict(set)
 
     @classmethod
     def from_dict(cls, dict_):
@@ -98,18 +101,20 @@ class Graph:
         """
         return str(self.get_edges())
 
-    def plot_graph(self, graph, with_labels=True):
+    @staticmethod
+    def plot_graph(graph, with_labels=True, node_size=100):
         """
         Method to visualize graph or sub_graph
 
         :param graph: graph to be visualized
         :param with_labels: bool to add labels or not
+        :param node_size: node size
         :return: Plot
         """
         g = nx.DiGraph(graph)
         plt.figure(figsize=(12, 8))
         plt.clf()
-        nx.draw(g, with_labels=with_labels)
+        nx.draw(g, with_labels=with_labels, node_size=node_size)
         plt.show();
 
     def pages_in_click(self, initial_page, num_clicks, print_=False):
@@ -124,7 +129,7 @@ class Graph:
         """
 
         # This will be a list of all the pages that we are able to visit during our clicks
-        pages_seen = set()
+        pages_visited = set()
         # This will be a list of articles that we are able to reach at the ith click. We will use this list to check the
         # articles that we can reach in the i+1th click
         queue = set([initial_page])
@@ -154,25 +159,66 @@ class Graph:
 
             # Update queue as the new pages to explore
             queue = new_queue
-            # Update pages_seen with the pages that have been seen in this click
-            pages_seen.update(new_queue | last_nodes)
+            # Update pages_seen with the pages that have been seen in this click (pages that still have out-nodes and
+            # pages that end at that node)
+            pages_visited.update(new_queue | last_nodes)
             # Update the number of clicks done
             clicks += 1
 
         # Return the unique pages
-        return set(pages_seen)
+        return set(pages_visited)
 
     # TODO:  Use class methods to  construct new induced-subgraph. Issue is that the methods construct over the 
     #  self.edge and we don't  want that
+    # TODO: See how to return the new class
     def generate_induced_subgraph(self, vertices):
         """
         Given a set of vertices, compute it's induced subgraph
 
         :param vertices: Set of vertices
-        :return: Induced sub_graph
+        :return: Store induced sub_graph in class
         """
         induced_subgraph = defaultdict(set)
-
         for vertex in vertices:
             induced_subgraph[vertex] = vertices.intersection(self.edges[vertex])
-        return induced_subgraph
+
+        return Graph(induced_subgraph)
+
+    # TODO: probably not needed method
+    def bfs(self, start):
+        """
+        Function to compute the bfs at any starting point
+
+        :param start: Initial page
+        :return: Pages that can be visited from that starting point
+        """
+        visited = set()
+        queue = deque([start])
+
+        while queue:
+            node = queue.popleft()
+            if node not in visited:
+                visited.update([node])
+                neighbours = self.edges[node]
+                for neighbour in neighbours:
+                    queue.append(neighbour)
+        return visited
+
+    def min_cut(self, article1, article2):
+        """
+        Given two random articles, get the minimum number of edges that need to be breaken down to dut the link
+        between both articles.
+
+        This algorithm will follow the logic followed by the Edmonds-Karp Algorithm (max flow is equal to min cut),
+        which is an improvement on the Ford-Fulkerson Algorithm
+
+        :param article1: Integer representing an article (source article)
+        :param article2: Integer representing an article (sink article)
+        :return: Integer (number of edges)
+        """
+        x = self.induced_subgraph
+        min_cut = 0
+
+        return min_cut
+
+
