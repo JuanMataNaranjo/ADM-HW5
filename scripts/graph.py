@@ -3,15 +3,19 @@ import functionality as fn
 import plotly.express as plty
 import numpy as np
 import pandas as pd
+import networkx as nx
+import matplotlib.pyplot as plt
+from collections import deque
 
 
 class Graph:
-    
+
     def __init__(self):
         """
         Initialize the Graph object
 
         :attribute edges : dictionary of vertices (keys) to sets of vertices (values)
+        :attribute induced_subgraph:
         """
         self._edges = defaultdict(set)
 
@@ -33,14 +37,12 @@ class Graph:
                                     # without this step, a sink node wouldn't appear in g._edges
         return g
 
-
     @property
     def n_vertices_(self):
         """
         Read-only property, number of vertices in the graph
         """
         return len(self._edges)
-
 
     @property
     def n_edges_(self):
@@ -52,7 +54,6 @@ class Graph:
             n += len(self._edges[v]) 
         return n
 
-
     @property
     def density_(self):
         """
@@ -60,7 +61,6 @@ class Graph:
         """
         n_v = self.n_vertices_
         return np.format_float_scientific(self.n_edges_ / (n_v * (n_v - 1)), precision=3)
-
 
     def get_vertices(self):
         """
@@ -70,7 +70,6 @@ class Graph:
         """
         return list(self._edges.keys())
 
-    
     def get_edges(self):
         """
         Get the edges of the graph
@@ -78,7 +77,6 @@ class Graph:
         :return : list of (source, destination) tuples
         """
         return [(v, u) for v in self._edges.keys() for u in self._edges[v]]
-
 
     def add_edge(self, v, u):
         """
@@ -91,8 +89,7 @@ class Graph:
         """
         self._edges[v].add(u)
 
-    
-    def add_vertex(self, v): 
+    def add_vertex(self, v):
         """
         Add a vertex to the graph
 
@@ -182,9 +179,130 @@ class Graph:
                             x='Degree', y='Normalized number of nodes', title='Degree distribution')
         fig.show()
 
-
     def __repr__(self):
         """
         Represent the graph as the list of its edges
         """
         return str(self.get_edges())
+
+    @staticmethod
+    def plot_graph(graph, with_labels=True, node_size=100):
+        """
+        Method to visualize graph or sub_graph
+
+        :param graph: graph to be visualized
+        :param with_labels: bool to add labels or not
+        :param node_size: node size
+        :return: Plot
+        """
+        g = nx.DiGraph(graph)
+        plt.figure(figsize=(12, 8))
+        plt.clf()
+        nx.draw(g, with_labels=with_labels, node_size=node_size)
+        plt.show();
+
+    def pages_in_click(self, initial_page, num_clicks, print_=False):
+        """
+        Given a graph, an initial starting point and the number of clicks, how many, and which pages will we be able to
+        visit?
+
+        :param initial_page: Page we will be starting out from
+        :param num_clicks: Number of clicks we are willing to do
+        :param print_: Bool to visualize some of the outputs or not
+        :return: Pages seen  with the given number of clicks
+        """
+
+        # This will be a list of all the pages that we are able to visit during our clicks
+        pages_visited = set()
+        # This will be a list of articles that we are able to reach at the ith click. We will use this list to check the
+        # articles that we can reach in the i+1th click
+        queue = set([initial_page])
+
+        # Placeholder to keep track of the clicks we are doing
+        clicks = 0
+        # Interrupt the loop once we reach the required number of clicks
+        while clicks < num_clicks:
+            # List of elements that will be used for the next loop
+            new_queue = set()
+            # List of elements that don't have any out-node
+            last_nodes = set()
+            # Loop over all the pages of the current click
+            for node in queue:
+                if print_:
+                    print(node)
+                # If a given node has target node, include the out-nodes into the new_queue list
+                if bool(self.edges[node]):
+                    new_queue.update(self.edges[node])
+                # If a given node has no target node, include it in the last_nodes list (this list will not be used to)
+                # for further inspection but we will have to consider it as an article that has been seen
+                else:
+                    last_nodes.update([node])
+
+            if print_:
+                print(new_queue)
+
+            # Update queue as the new pages to explore
+            queue = new_queue
+            # Update pages_seen with the pages that have been seen in this click (pages that still have out-nodes and
+            # pages that end at that node)
+            pages_visited.update(new_queue | last_nodes)
+            # Update the number of clicks done
+            clicks += 1
+
+        # Return the unique pages
+        return set(pages_visited)
+
+    # TODO:  Use class methods to  construct new induced-subgraph. Issue is that the methods construct over the 
+    #  self.edge and we don't  want that
+    # TODO: See how to return the new class
+    def generate_induced_subgraph(self, vertices):
+        """
+        Given a set of vertices, compute it's induced subgraph
+
+        :param vertices: Set of vertices
+        :return: Store induced sub_graph in class
+        """
+        induced_subgraph = defaultdict(set)
+        for vertex in vertices:
+            induced_subgraph[vertex] = vertices.intersection(self.edges[vertex])
+
+        return Graph(induced_subgraph)
+
+    # TODO: probably not needed method
+    def bfs(self, start):
+        """
+        Function to compute the bfs at any starting point
+
+        :param start: Initial page
+        :return: Pages that can be visited from that starting point
+        """
+        visited = set()
+        queue = deque([start])
+
+        while queue:
+            node = queue.popleft()
+            if node not in visited:
+                visited.update([node])
+                neighbours = self.edges[node]
+                for neighbour in neighbours:
+                    queue.append(neighbour)
+        return visited
+
+    def min_cut(self, article1, article2):
+        """
+        Given two random articles, get the minimum number of edges that need to be breaken down to dut the link
+        between both articles.
+
+        This algorithm will follow the logic followed by the Edmonds-Karp Algorithm (max flow is equal to min cut),
+        which is an improvement on the Ford-Fulkerson Algorithm
+
+        :param article1: Integer representing an article (source article)
+        :param article2: Integer representing an article (sink article)
+        :return: Integer (number of edges)
+        """
+        x = self.induced_subgraph
+        min_cut = 0
+
+        return min_cut
+
+
