@@ -4,9 +4,11 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-import plotly.express as plty
 
-import functionality as fn
+try:
+    import functionality as fn
+except:
+    import scripts.functionality as fn
 
 
 class Graph:
@@ -171,21 +173,36 @@ class Graph:
         degree_dist = Counter(self.degree().values())
         if normalize:
             n_v = self.n_vertices_
-            degree_dist = {d:(degree_dist[d] / n_v) for d in degree_dist}
+            degree_dist = {d:round(degree_dist[d] / n_v, 8) for d in degree_dist}
         return dict(degree_dist)
 
- 
-    def plot_degree_distro(self, normalize=True):
+    
+    # TODO: make the function more flexible 
+    def plot_degree_distro(self, normalize=True, log=True, interval=None):
         """
         Plot the degree distribution of the graph
 
-        :param normalize : normalize the degree distribution
+        :param normalize : normalize the degree distribution dividing by the number of vertices
+        :param log : if True, plot the distribution in a log-log plot
+        :param interval : interval [a,b) of degrees to be considered
         :return 
         """
         degree_dist = self.degree_distro(normalize)
-        fig = plty.histogram(data_frame=pd.DataFrame(data=degree_dist.items(), columns=['Degree', 'Normalized number of nodes']),\
-                            x='Degree', y='Normalized number of nodes', title='Degree distribution')
-        fig.show()
+        if isinstance(interval, tuple):
+            degree_dist = {degree:value for degree,value in degree_dist.items()\
+                                        if degree>=interval[0] and degree<interval[1]}
+        plt.figure(figsize=(16,10))
+        plt.bar(list(degree_dist.keys()), degree_dist.values())
+        if log:
+            plt.yscale('log')
+            plt.xscale('log')
+            plt.title('Log-log degree distribution')
+        else:
+            plt.title('Degree distribution')
+        plt.xlabel('Degree')
+        plt.ylabel('Number of nodes')
+        plt.grid()
+        plt.show()
 
 
     def __repr__(self):
