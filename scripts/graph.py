@@ -272,7 +272,7 @@ class Graph:
 
 
     # TODO: make the function more flexible; extend it to other types of graphs
-    def _dijkstra(self, src, pred = None):
+    def _dijkstra(self, src, pred=None):
         """
         Internal routine to compute the shortest paths from a source according to the Dijkstra algorithm.
         Implementation only for unweighted graphs
@@ -355,7 +355,18 @@ class Graph:
             cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories[c] ]))
             cat_names.append(c)
         return list(np.array(cat_names)[np.argsort(cat_dist)])
-            
+    
+
+    def dist_weighted_graph(self, vertices=None):
+        distances = self.all_pairs_shortest_path(vertices)
+        wg = WeightedGraph()
+        for u in distances.keys():
+            wg.add_vertex(u)
+            for v in distances[u].keys():
+                if v in distances.keys():
+                    wg.add_edge(u, v, distances[u][v])
+        return wg
+
 
     # TODO: How can we make this function not static (graph changes constantly and don't want to chaneg the classes
     #  attribute)
@@ -649,3 +660,17 @@ class Graph:
                 print('Max Flow and Kagler\'s algorithm do not converge')
                 print('The minimum number of edges required to remove to disconnect is: ', max_flow)
                 print('The best edges to do this are: ', heapq.heappop(champion_set)[1])
+
+
+
+class WeightedGraph(Graph):
+
+    def __init__(self):
+        super().__init__()
+
+    
+    def add_edge(self, v, u, weight):
+        """
+
+        """
+        super().add_edge(v, (u, weight))
