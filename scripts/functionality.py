@@ -45,6 +45,25 @@ def read_pages_category(filename='data/wiki-topcats-categories.txt'):
     return pages_category
 
 
+def read_graph_category(g, filename='data/graph_pages_category.json'):
+    """
+    Function to read the category:[graph vertices] file
+
+    :param filename:
+    :return: category dictionary
+    """
+    if not os.path.isfile(filename):
+        categories = read_json('data/final_pages_category.json')
+        vert = set(g.get_vertices())
+        cat = list(categories.keys())
+        for c in cat:
+            categories[c] = [v for v in categories[c] if v in vert]
+            if len(categories[c]) == 0:
+                categories.pop(c)
+        write_json(filename, categories)
+    return read_json(filename)
+
+
 def read_name_page(filename='data/wiki-topcats-page-names.txt'):
     """
     Function to read the wiki-topcats-categories.txt file
