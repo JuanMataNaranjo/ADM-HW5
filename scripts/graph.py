@@ -1,5 +1,8 @@
 from collections import Counter, defaultdict, deque
+from tqdm import tqdm
 
+import fibheap as fib
+import heapq
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -11,6 +14,52 @@ except:
     import scripts.functionality as fn
 
 
+
+class Vertex:
+    """
+    Class to handle the vertices of a graph. 
+    Product of a previous implementation, probably garbage code.
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.dist = float('inf')
+        self.pred = None
+
+
+    @classmethod
+    def from_list(cls, list_):
+        return {v: cls(v) for v in list_}
+
+
+    def __lt__(self, other):
+        return self.dist < other.dist
+
+    
+    def __le__(self, other):
+        return self.dist <= other.dist
+
+
+    def __eq__(self, other):
+        return self.dist == other.dist
+
+
+    def __add__(self, other):
+        return self.dist + 1
+
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+    def __repr__(self):
+        return self.__str__()
+
+
+    def __str__(self):
+        return f'{self.name}: dist={self.dist}, pred={self.pred}'
+
+
 class Graph:
 
     def __init__(self):
@@ -20,7 +69,7 @@ class Graph:
         :attribute edges : dictionary of vertices (keys) to sets of vertices (values)
         :attribute induced_subgraph:
         """
-        self._edges = defaultdict(set)
+        self._adj_list = defaultdict(set)
 
 
     @classmethod
@@ -32,12 +81,12 @@ class Graph:
         :return : new Graph instance
         """
         g = cls()
-        g._edges.update({k:set(v) for k, v in dict_.items()})
-        vertices = list(g._edges.keys())
+        g._adj_list.update({k:set(v) for k, v in dict_.items()})
+        vertices = list(g._adj_list.keys())
         for v in vertices:
-            for u in g._edges[v]:
+            for u in g._adj_list[v]:
                 g.add_vertex(u)     # make sure that all the vertices of the graph are in the adjacency list:
-                                    # without this step, a sink node wouldn't appear in g._edges
+                                    # without this step, a sink node wouldn't appear in g._adj_list
         return g
 
 
@@ -46,7 +95,7 @@ class Graph:
         """
         Read-only property, number of vertices in the graph
         """
-        return len(self._edges)
+        return len(self._adj_list)
 
 
     @property
@@ -55,8 +104,8 @@ class Graph:
         Read-only property, number of edges in the graph
         """
         n = 0
-        for v in self._edges:
-            n += len(self._edges[v]) 
+        for v in self._adj_list:
+            n += len(self._adj_list[v]) 
         return n
 
 
@@ -75,7 +124,7 @@ class Graph:
 
         :return : list of vertices
         """
-        return list(self._edges.keys())
+        return list(self._adj_list.keys())
 
 
     def get_edges(self):
@@ -84,7 +133,7 @@ class Graph:
 
         :return : list of (source, destination) tuples
         """
-        return [(v, u) for v in self._edges.keys() for u in self._edges[v]]
+        return [(v, u) for v in self._adj_list.keys() for u in self._adj_list[v]]
 
 
     def add_edge(self, v, u):
@@ -96,7 +145,7 @@ class Graph:
 
         :return : 
         """
-        self._edges[v].add(u)
+        self._adj_list[v].add(u)
 
 
     def add_vertex(self, v):
@@ -107,7 +156,7 @@ class Graph:
         
         :return : 
         """
-        self._edges[v]
+        self._adj_list[v]
 
 
     def in_degree(self, v=None):
@@ -118,15 +167,15 @@ class Graph:
         :return in_d : int
         """
         if v is None:
-            degrees = defaultdict.fromkeys(self._edges.keys(), 0)
+            degrees = defaultdict.fromkeys(self._adj_list.keys(), 0)
             for v in degrees:
-                for u in self._edges[v]:
+                for u in self._adj_list[v]:
                     degrees[u] += 1
             return dict(degrees)
         else:
             in_d = 0
-            for u in self._edges:
-                if v in self._edges[u]:
+            for u in self._adj_list:
+                if v in self._adj_list[u]:
                     in_d += 1
             return in_d
 
@@ -139,11 +188,11 @@ class Graph:
         :return  : int
         """
         if v is None:
-            degrees = dict.fromkeys(self._edges.keys(), 0)
+            degrees = dict.fromkeys(self._adj_list.keys(), 0)
             for v in degrees:
-                degrees[v] = len(self._edges[v])
+                degrees[v] = len(self._adj_list[v])
             return degrees
-        return len(self._edges[v])
+        return len(self._adj_list[v])
 
 
     def degree(self, v=None):
@@ -156,7 +205,7 @@ class Graph:
         if v is None:
             in_deg = self.in_degree()
             out_deg = self.out_degree()
-            degrees = dict.fromkeys(self._edges.keys(), 0)
+            degrees = dict.fromkeys(self._adj_list.keys(), 0)
             for v in degrees:
                 degrees[v] = in_deg[v] + out_deg[v]
             return degrees
@@ -177,7 +226,7 @@ class Graph:
         return dict(degree_dist)
 
     
-    # TODO: make the function more flexible 
+    # TODO: make the function more flexible, i.e. allow to control and change more parameters, provide more visualizations options
     def plot_degree_distro(self, normalize=True, log=True, interval=None):
         """
         Plot the degree distribution of the graph
@@ -204,6 +253,92 @@ class Graph:
         plt.grid()
         plt.show()
 
+
+    # TODO: make the function more flexible; extend it to other types of graphs
+    def _dijkstra(self, src, pred = None):
+        """
+        Internal routine to compute the shortest paths from a source according to the Dijkstra algorithm.
+        Implementation only for unweighted graphs
+
+        :param src : source vertex
+        :param pred : dictionary of vertex:predecessor
+
+        :return : dictionary of distances between the source vertex and all the other vertices
+        """
+        dist = {}
+        processed = defaultdict(lambda: float('inf'))
+        queue = []
+        heapq.heappush(queue, (0, src))
+        with tqdm() as pbar:
+            while queue:
+                pbar.update(1)
+                (d, u) = heapq.heappop(queue)
+                if u in dist:
+                    continue
+                dist[u] = d
+                for v in self._adj_list[u]:
+                    if v not in dist:
+                        if processed[v] > dist[u] + 1:
+                            processed[v] = dist[u] + 1
+                            if pred is not None:
+                                pred[v] = u
+                            heapq.heappush(queue, (processed[v], v))
+        return dist
+                
+    
+    def shortest_path(self, src, rec_path=False):
+        """
+        Compute the shortest paths between the source vertex and all the vertices in the graph.
+
+        :param src : source vertex
+        :param rec_path (optional) : save the predecessor of each node
+
+        :return : dictionary of distances between the source vertex and all the other vertices
+        :return : if rec_path==True, return also a dictionary of vertices predecessors
+        """
+        if rec_path:
+            pred = defaultdict(lambda: None)
+            return self._dijkstra(src, pred=pred), pred
+        return self._dijkstra(src)
+        
+
+    def all_pairs_shortest_path(self, vertices=None):
+        """
+        Compute the shortest paths between a set of vertices and all the other vertices in the graph.
+
+        :param vertices : subset of vertices in the graph from which compute the shortest path;
+                        if vertices==None, compute the the shortest paths between each pair of vertices in the graph.
+
+        :return : dictionary of distances; src_vertex: {all_vertices: dist}
+        """
+        distances = dict()
+        if vertices is None:
+            for v in self._adj_list:
+                distances[v] = self._dijkstra(v)
+        else:
+            for v in vertices:
+                distances[v] = self._dijkstra(v)
+        return distances
+
+
+    def category_distance(self, category, categories):
+        """
+        Compute the distances between a given category and all the others.
+
+        :param category : category (name) from which compute the distances
+        :param categories : dictionary of the categories in the graph
+
+        :return : list of categories' names sorted by their distances from the source category
+        """
+        cat_vert = categories.pop(category, None)
+        v_dist = self.all_pairs_shortest_path(cat_vert)
+        cat_dist = np.zeros(len(categories))
+        cat_names = []
+        for idx, c in enumerate(categories.keys()):
+            cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories[c] ]))
+            cat_names.append(c)
+        return list(np.array(cat_names)[np.argsort(cat_dist)])
+            
 
     def __repr__(self):
         """
@@ -259,8 +394,8 @@ class Graph:
                 if print_:
                     print(node)
                 # If a given node has target node, include the out-nodes into the new_queue list
-                if bool(self._edges[node]):
-                    new_queue.update(self._edges[node])
+                if bool(self._adj_list[node]):
+                    new_queue.update(self._adj_list[node])
                 # If a given node has no target node, include it in the last_nodes list (this list will not be used to)
                 # for further inspection but we will have to consider it as an article that has been seen
                 else:
@@ -293,7 +428,7 @@ class Graph:
         """
         induced_subgraph = defaultdict(set)
         for vertex in vertices:
-            induced_subgraph[vertex] = vertices.intersection(self._edges[vertex])
+            induced_subgraph[vertex] = vertices.intersection(self._adj_list[vertex])
 
         return Graph(induced_subgraph)
 
@@ -313,7 +448,7 @@ class Graph:
             node = queue.popleft()
             if node not in visited:
                 visited.update([node])
-                neighbours = self._edges[node]
+                neighbours = self._adj_list[node]
                 for neighbour in neighbours:
                     queue.append(neighbour)
         return visited
@@ -335,5 +470,3 @@ class Graph:
         min_cut = 0
 
         return min_cut
-
-
