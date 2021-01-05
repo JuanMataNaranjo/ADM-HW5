@@ -155,6 +155,7 @@ class Graph:
         :return : 
         """
         self._adj_list[v].add(u)
+        self.add_vertex(u)
 
 
     def add_vertex(self, v):
@@ -363,9 +364,15 @@ class Graph:
         for u in distances.keys():
             wg.add_vertex(u)
             for v in distances[u].keys():
-                if v in distances.keys():
+                if v in distances.keys() and distances[u][v] != 0:
                     wg.add_edge(u, v, distances[u][v])
         return wg
+
+
+    def naive_minimum_cat_walk(self, category, cat_vertices):
+        """
+        """
+        pass
 
 
     # TODO: How can we make this function not static (graph changes constantly and don't want to chaneg the classes
@@ -666,11 +673,89 @@ class Graph:
 class WeightedGraph(Graph):
 
     def __init__(self):
-        super().__init__()
+        self._adj_list = defaultdict(dict)
 
     
     def add_edge(self, v, u, weight):
         """
 
         """
-        super().add_edge(v, (u, weight))
+        self._adj_list[v][u] = weight
+        self.add_vertex(u)
+
+
+    def get_edges(self, output='tuple'):
+        """
+        Get the edges of the graph
+        :param output: Output can be a list of tuples ('tuple'), a list of lists ('list') or a dictionary with lists
+            ('dict')
+        :return : list of (source, destination, weight) tuples
+        """
+        if output == 'tuple':
+            return [(v, u, self._adj_list[v][u]) for v in self._adj_list.keys() for u in self._adj_list[v]]
+        else:
+            edge_list = [[v, u, self._adj_list[v][u]] for v in self._adj_list.keys() for u in self._adj_list[v]]
+            if output == 'list':
+                return edge_list
+            else:
+                return {i: edge for i, edge in enumerate(edge_list)}
+
+
+    def nearest_neighbor(self, src):
+        """
+        """
+        unvisited = set(self._adj_list.keys())
+        cost = 0
+        v = src
+        while unvisited:
+            unvisited.remove(v)
+            min_ = [0, float('inf')]
+            for u in self._adj_list[v].keys():
+                if u in unvisited and self._adj_list[v][u] < min_[1]:
+                    min_[0] = u
+                    min_[1] = self._adj_list[v][u]
+            if min_[1] == float('inf'):
+                break
+            cost += min_[1]
+            v = min_[0]
+        if unvisited:
+            print('Not possible!')
+        return cost
+
+    
+    def to_undirected(self):
+        """
+
+        """
+        wg = WeightedGraph()
+        w = -10000
+        for v in self._adj_list.keys():
+            wg.add_edge(v, v*-1, w)
+            wg.add_edge(v*-1, v, w)
+        for v in self._adj_list.keys():
+            for u in self._adj_list[v]:
+                wg.add_edge(v*-1, u, self._adj_list[v][u])
+                wg.add_edge(u, v*-1, self._adj_list[v][u])
+        return wg
+
+
+    def mst_prim(self, src):
+        processed = defaultdict(lambda: float('inf'))
+        predecessors = {}
+        dist = {}
+        queue = []
+        heapq.heappush(queue, (0, src, None))
+        while queue:
+            (d, u, pred) = heapq.heappop(queue)
+            dist[u] = d
+            predecessors[u] = pred
+            for v in self._adj_list[u].keys():
+                if dist[u] + self._adj_list[u][v] < processed[v]:
+                    processed[v] = dist[u] + self._adj_list[u][v]
+                    heapq.heappush(queue, (processed[v], v, u))
+        return sum(dist.values())
+    
+            
+            
+
+    
