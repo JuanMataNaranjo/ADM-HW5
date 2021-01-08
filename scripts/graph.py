@@ -272,8 +272,33 @@ class Graph:
         plt.show()
 
 
-    # TODO: make the function more flexible; extend it to other types of graphs
-    def _dijkstra(self, src, pred=None):
+    def _bfs(self, src, targets_v=None, pred=None):
+        """
+        Function to compute the bfs at any starting point
+
+        :param start: Initial page
+        :return: Pages that can be visited from that starting point
+        """
+        if targets_v is None:
+            targets_v = set([None])
+        else:
+            targets_v = set(targets_v)
+        queue = deque([src])
+        dist = {src:0}
+
+        while queue and targets_v:
+            u = queue.popleft()
+            targets_v.discard(u)
+            for v in self._adj_list[u]:
+                if v not in dist:
+                    dist[v] = dist[u] + 1
+                    queue.append(v)
+                    if pred is not None:
+                        pred[v] = u
+        return dist
+
+
+    def _dijkstra(self, src, targets_v=None, pred=None):
         """
         Internal routine to compute the shortest paths from a source according to the Dijkstra algorithm.
         Implementation only for unweighted graphs
@@ -283,17 +308,22 @@ class Graph:
 
         :return : dictionary of distances between the source vertex and all the other vertices
         """
+        if targets_v is None:
+            targets_v = set([None])
+        else:
+            targets_v = set(targets_v)
         dist = {}
         processed = defaultdict(lambda: float('inf'))
         queue = []
         heapq.heappush(queue, (0, src))
         with tqdm() as pbar:
-            while queue:
+            while queue and targets_v:
                 pbar.update(1)
                 (d, u) = heapq.heappop(queue)
                 if u in dist:
                     continue
                 dist[u] = d
+                targets_v.discard(u)
                 for v in self._adj_list[u]:
                     if v not in dist:
                         if processed[v] > dist[u] + 1:
@@ -304,7 +334,7 @@ class Graph:
         return dist
                 
     
-    def shortest_path(self, src, rec_path=False):
+    def shortest_path(self, src, targets_v=None, rec_path=False, how='bfs'):
         """
         Compute the shortest paths between the source vertex and all the vertices in the graph.
 
@@ -314,13 +344,14 @@ class Graph:
         :return : dictionary of distances between the source vertex and all the other vertices
         :return : if rec_path==True, return also a dictionary of vertices predecessors
         """
+        algorithm = {'bfs':self._bfs, 'dijkstra':self._dijkstra}[how]
         if rec_path:
             pred = defaultdict(lambda: None)
-            return self._dijkstra(src, pred=pred), pred
-        return self._dijkstra(src)
+            return algorithm(src, targets_v=targets_v, pred=pred), pred
+        return algorithm(src, targets_v=targets_v)
         
 
-    def all_pairs_shortest_path(self, vertices=None):
+    def all_pairs_shortest_path(self, vertices=None, how='bfs'):
         """
         Compute the shortest paths between a set of vertices and all the other vertices in the graph.
 
@@ -332,10 +363,10 @@ class Graph:
         distances = dict()
         if vertices is None:
             for v in self._adj_list:
-                distances[v] = self._dijkstra(v)
+                distances[v] = self.shortest_path(v, how=how)
         else:
             for v in vertices:
-                distances[v] = self._dijkstra(v)
+                distances[v] = self.shortest_path(v, vertices, how=how)
         return distances
 
 
@@ -359,7 +390,7 @@ class Graph:
     
 
     def dist_weighted_graph(self, vertices=None):
-        distances = self.all_pairs_shortest_path(vertices)
+        distances = self.all_pairs_shortest_path(vertices, how='bfs')
         wg = WeightedGraph()
         for u in distances.keys():
             wg.add_vertex(u)
@@ -369,7 +400,7 @@ class Graph:
         return wg
 
 
-    def naive_minimum_cat_walk(self, category, cat_vertices):
+    def minimum_cat_walk(self, category, cat_vertices):
         """
         """
         pass
@@ -502,26 +533,6 @@ class Graph:
 
         return Graph.from_dict(induced_subgraph)
 
-
-    # TODO: probably not needed method
-    def bfs(self, start):
-        """
-        Function to compute the bfs at any starting point
-
-        :param start: Initial page
-        :return: Pages that can be visited from that starting point
-        """
-        visited = set()
-        queue = deque([start])
-
-        while queue:
-            node = queue.popleft()
-            if node not in visited:
-                visited.update([node])
-                neighbours = self._adj_list[node]
-                for neighbour in neighbours:
-                    queue.append(neighbour)
-        return visited
 
     # Question 4
     def build_residual_graph_capacity(self):
@@ -750,9 +761,10 @@ class WeightedGraph(Graph):
             dist[u] = d
             predecessors[u] = pred
             for v in self._adj_list[u].keys():
-                if dist[u] + self._adj_list[u][v] < processed[v]:
-                    processed[v] = dist[u] + self._adj_list[u][v]
-                    heapq.heappush(queue, (processed[v], v, u))
+                if v not in dist:
+                    if dist[u] + self._adj_list[u][v] < processed[v]:
+                        processed[v] = dist[u] + self._adj_list[u][v]
+                        heapq.heappush(queue, (processed[v], v, u))
         return sum(dist.values())
     
             
