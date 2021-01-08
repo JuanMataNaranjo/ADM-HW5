@@ -373,7 +373,7 @@ class Graph:
                 distances[v] = self.shortest_path(v, how=how)
         else:
             for v in vertices:
-                distances[v] = self.shortest_path(v, vertices, how=how)
+                distances[v] = self.shortest_path(v, how=how)
         return distances
 
 
