@@ -389,8 +389,9 @@ class Graph:
         return list(np.array(cat_names)[np.argsort(cat_dist)])
     
 
-    def dist_weighted_graph(self, vertices=None):
-        distances = self.all_pairs_shortest_path(vertices, how='bfs')
+    def dist_weighted_graph(self, vertices=None, distances=None):
+        if distances is None:
+            distances = self.all_pairs_shortest_path(vertices, how='bfs')
         wg = WeightedGraph()
         for u in distances.keys():
             wg.add_vertex(u)
@@ -400,10 +401,28 @@ class Graph:
         return wg
 
 
-    def minimum_cat_walk(self, category, cat_vertices):
+    def minimum_cat_walk(self, cat_vertices):
         """
+
         """
-        pass
+        distances = self.all_pairs_shortest_path(cat_vertices)
+        src = -1
+        min_dist = float('inf')
+        for v in distances.keys():
+            dist_v = 0
+            for u in distances[v].keys():
+                if u in distances.keys():
+                    dist_v += distances[v][u]
+            if dist_v < min_dist:
+                src = v
+                min_dist = dist_v
+        wg = self.dist_weighted_graph(distances=distances)
+        cost = wg.nearest_neighbor(src)
+        print(src)
+        if cost < float('inf'):
+            print(cost)
+        else:
+            print('Not possible!')
 
 
     # TODO: How can we make this function not static (graph changes constantly and don't want to chaneg the classes
@@ -730,7 +749,7 @@ class WeightedGraph(Graph):
             cost += min_[1]
             v = min_[0]
         if unvisited:
-            print('Not possible!')
+            cost = float('inf')
         return cost
 
     
