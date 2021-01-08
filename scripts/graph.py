@@ -276,8 +276,11 @@ class Graph:
         """
         Function to compute the bfs at any starting point
 
-        :param start: Initial page
-        :return: Pages that can be visited from that starting point
+        :param src : Initial page
+        :param targets_v : vertices of interest; the function stops when all the vertices in targets_v have been explored
+        :param pred : dictionary of vertex:predecessor
+
+        :return : dictionary of distances between the source vertex and all the other vertices
         """
         if targets_v is None:
             targets_v = set([None])
@@ -304,6 +307,7 @@ class Graph:
         Implementation only for unweighted graphs
 
         :param src : source vertex
+        :param targets_v : vertices of interest; the function stops when all the vertices in targets_v have been explored
         :param pred : dictionary of vertex:predecessor
 
         :return : dictionary of distances between the source vertex and all the other vertices
@@ -339,7 +343,9 @@ class Graph:
         Compute the shortest paths between the source vertex and all the vertices in the graph.
 
         :param src : source vertex
+        :param targets_v (optional) : vertices of interest; the function stops when all the vertices in targets_v have been explored
         :param rec_path (optional) : save the predecessor of each node
+        :param how : algorithm for computing the shortest paths; 'bfs' or 'dijkstra'
 
         :return : dictionary of distances between the source vertex and all the other vertices
         :return : if rec_path==True, return also a dictionary of vertices predecessors
@@ -357,6 +363,7 @@ class Graph:
 
         :param vertices : subset of vertices in the graph from which compute the shortest path;
                         if vertices==None, compute the the shortest paths between each pair of vertices in the graph.
+        :param how : algorithm for computing the shortest paths; 'bfs' or 'dijkstra'
 
         :return : dictionary of distances; src_vertex: {all_vertices: dist}
         """
@@ -390,6 +397,15 @@ class Graph:
     
 
     def dist_weighted_graph(self, vertices=None, distances=None):
+        """
+        Compute a new weighted graph having the vertices in vertices (in the graph if vertices is None)
+        connected by edges weighted with the minimum distsnce between each pair of vertices
+
+        :param vertices (optional) : subset of vertices in the graph
+        :param distances (optional) : dictionary of precomputed distances
+
+        :return : new WeightedGraph instance
+        """
         if distances is None:
             distances = self.all_pairs_shortest_path(vertices, how='bfs')
         wg = WeightedGraph()
@@ -403,7 +419,12 @@ class Graph:
 
     def minimum_cat_walk(self, cat_vertices):
         """
+        Compute ab approximation (if possible) of the shortest walk across all the vertices in cat_vertices,
+        starting from the most central vertex in cat_vertices. Closeness is assumed as the metric of centrality.
 
+        :param cat_vertices : vertices in the target category
+
+        :return : 
         """
         distances = self.all_pairs_shortest_path(cat_vertices)
         src = -1
@@ -733,6 +754,11 @@ class WeightedGraph(Graph):
 
     def nearest_neighbor(self, src):
         """
+        Compute the shortest walk from src across all the vertices in the graph using the nearest neighbor heuristic
+
+        :param src: start vertex
+
+        :return : cost of the approximated minimum walk; return float('inf') if no walk is found
         """
         unvisited = set(self._adj_list.keys())
         cost = 0
@@ -753,9 +779,10 @@ class WeightedGraph(Graph):
         return cost
 
     
+    # TODO: probably useless method
     def to_undirected(self):
         """
-
+        Convert a directed graph into an undirected one.
         """
         wg = WeightedGraph()
         w = -10000
@@ -769,7 +796,11 @@ class WeightedGraph(Graph):
         return wg
 
 
+    # TODO: probably garbage
     def mst_prim(self, src):
+        """
+        Compute the Minimum spanning tree for an undirected graph.
+        """
         processed = defaultdict(lambda: float('inf'))
         predecessors = {}
         dist = {}
