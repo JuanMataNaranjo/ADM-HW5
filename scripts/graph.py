@@ -92,6 +92,16 @@ class Graph:
                                     # without this step, a sink node wouldn't appear in g._adj_list
         return g
 
+    @classmethod
+    def from_dict_weighted(cls, dict_):
+        """
+        Create a new Graph object from a dictionary with weighted edges
+
+        :param dict_ : dictionary of vertices (keys) to sets of vertices (values)
+        :return : new Graph instance
+        """
+        g = cls()
+        return g
 
     @property
     def n_vertices_(self):
@@ -649,3 +659,119 @@ class Graph:
                 print('Max Flow and Kagler\'s algorithm do not converge')
                 print('The minimum number of edges required to remove to disconnect is: ', max_flow)
                 print('The best edges to do this are: ', heapq.heappop(champion_set)[1])
+
+    # Question 6
+
+    # Probably garbage code
+    def category_model_network(self, article_category_dict):
+        """
+        Given a dictionary that maps article integer to category, return a graph class with the new category model
+        network. This network will mainly be used to later compute the page rank score for each category
+
+        :param article_category_dict: Dictionary that maps articles to categories
+        :return: New graph class with the nodes this time the categories, and the edges are links between categories
+            (one link between categories implies that at least one article of that category has a link to the other
+            category)
+        """
+
+        category_adj_list = defaultdict(set)
+        for k, v in self._adj_list.items():
+            category_adj_list[article_category_dict[k]].update(set([article_category_dict[node] for node in v]))
+
+        return Graph.from_dict(category_adj_list)
+
+    def category_model_network_weighted(self, article_category_dict):
+        """
+        Given a dictionary that maps article integer to category, return a graph class with the new category model
+        network. This network will mainly be used to later compute the page rank score for each category and will also
+        be weighted (weight are the number of links that go from one category to the next)
+
+        :param article_category_dict: Dictionary that maps articles to categories
+        :return: New graph class with the nodes this time the categories, and the edges are links between categories
+            (one link between categories implies that at least one article of that category has a link to the other
+            category)
+        """
+        category_adj_list = defaultdict(dict)
+        for k, v in self._adj_list.items():
+            for node in v:
+                try:
+                    # noinspection PyTypeChecker
+                    category_adj_list[article_category_dict[k]][article_category_dict[node]] = \
+                        category_adj_list[article_category_dict[k]][article_category_dict[node]] + 1
+                except KeyError:
+                    category_adj_list[article_category_dict[k]].update({article_category_dict[node]: 1})
+
+        return category_adj_list
+        # TODO: Implement such that we can also have a weighted graph
+        # return Graph.from_dict_weighted(category_adj_list)
+
+    def page_rank(self, weighted_graph, damping_factor=.85, max_iter=100, tolerance=0.01):
+        """
+        Method that computes the page rank of a given weigthed and directed graph
+
+        :param weighted_graph: Weigthed graph
+        :param damping_factor: Probability of stopping to surf at any given moment (popular to include now a days to
+            model the probability that any user immediatly stops using internet)
+        :param max_iter: Maximum iterations to find a good convergance of the page rank score
+        :param tolerance: Tolerance level required for the iteration to stop earlier
+        :return: Page Rank score for all nodes
+
+        Example:
+
+        dummy_graph  = {'B': {'C': 1},
+                        'C': {'B': 6},
+                        'D': {'A': 1, 'B': 4},
+                        'E': {'B': 5, 'D': 2, 'F': 3},
+                        'F': {'E': 4}})
+
+        outlink_dict = {'A': {'D': 1/5},
+                        'B': {'C': 6/6, 'D': 4/5, 'E': 5/10},
+                        'C': {'B': 1/1},
+                        'D': {'E': 2/10},
+                        'E': {'F': 4/4},
+                        'F': {'E': 3/10}}
+        """
+
+        # Step 1: Generate dictionary with outlink probabilities [probability of  going to a page (key of this dict)
+        # from the pages in the values]
+        outlink_dict = defaultdict(dict)
+        for k, v in weighted_graph.items():
+            for i in v:
+                try:
+                    outlink_dict[i][k] = outlink_dict[i][k] + weighted_graph[k][i] / sum(weighted_graph[k].values())
+                except:
+                    outlink_dict[i].update({k: weighted_graph[k][i] / sum(weighted_graph[k].values())})
+
+        # Number of nodes
+        N = len(outlink_dict)
+
+        # Initial Page rank (same probability of starting out at any random node)
+        page_rank_score_t = {k: 1/N for k, v in outlink_dict.items()}
+        # Updated page rank score. This is what we will update constantly.Once these two are similar, convergance will
+        # be reached
+        page_rank_score_t_1 = {}
+        i = 0
+        while i < max_iter:
+            i += 1
+            for key, value in outlink_dict.items():
+                temp = sum(
+                    {k: v * page_rank_score_t[k] for k, v in outlink_dict[key].items() if k in page_rank_score_t}.values())
+                page_rank_score_t_1[key] = ((1 - damping_factor) / N) + damping_factor * temp
+            factor = 1 / sum(page_rank_score_t_1.values())
+
+            # Normalize updated page rank score accordingly
+            for k in page_rank_score_t_1:
+                page_rank_score_t_1[k] = page_rank_score_t_1[k] * factor
+
+            diff = np.sqrt(
+                sum((np.array(list(page_rank_score_t.values())) - np.array(list(page_rank_score_t_1.values()))) ** 2))
+
+            if diff < tolerance:
+                print('Converged in', i, 'iterations')
+                break
+
+            if i != max_iter:
+                page_rank_score_t = page_rank_score_t_1
+                page_rank_score_t_1 = {}
+
+        return dict(sorted(page_rank_score_t_1.items(), key=lambda item: item[1], reverse=True))
