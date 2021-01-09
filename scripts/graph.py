@@ -534,6 +534,8 @@ class Graph:
     def compute_augmented_path(graph, capacity, source, sink):
         """
         Function to compute the augmented paths required for the max flow algo (which is equal to the min cut value)
+        The idea behind computing this augmented  path is looking for a path that has not been visited before and with
+        a capacity higher than 0
         """
         visited = set()
         queue = deque([source])
@@ -591,13 +593,17 @@ class Graph:
 
         max_flow = 0
         capacity = copy.deepcopy(self._capacity)
+        flow_storage = []
 
         while True:
             augmented_path = self.compute_augmented_path(graph=self._residual_graph, capacity=capacity,
                                                          source=source, sink=sink)
             if not augmented_path:
-                return max_flow, capacity
+                edges_to_cut = [(str(flow_path[-2]) + ' --> ' + str(flow_path[-1])) for flow_path in flow_storage]
+                return edges_to_cut
+                # return max_flow, flow_storage
             flow = self.construct_flow(augmented_path, sink)
+            flow_storage.append(flow)
             flow_value, capacity = self.compute_flow_adjust_capacity(flow, capacity)
             max_flow += flow_value
 
@@ -620,11 +626,7 @@ class Graph:
     #                 min_cut_edges.append([key, sub_key])
     #     return min_cut_edges
 
-    # TODO: implement the kagler method which simply takes a original graph and contracts the edges at random. It does
-    #  so until it only has two nodes. The nodes that edges that remain are the number of edges required to cut
-    #  (approximation). Since we know the "real" min cut value, we can do the iteration until both solutions converge
-    #  (if there is no convergence after 100 simulations we could return the minimum set of edges with a  warning
-    #  stating that the real min is something else)
+    # This method will not be used any more. We can deduce the exact edges needed to be cut from the min_max algorithm
     def min_cut_kagler(self, source, sink, max_flow, iterations=20):
         """
         This method computes the exact edges that need to be removed in order to disconnect two pages. For this purpose
