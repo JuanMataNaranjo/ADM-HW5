@@ -293,19 +293,19 @@ class Graph:
         :return : dictionary of distances between the source vertex and all the other vertices
         """
         if targets_v is None:
-            targets_v = set([None])
+            dest_v = set([None])
         else:
-            targets_v = set(targets_v)
-        queue = deque([src])
+            dest_v = set(targets_v)
+        queue = [src]
         dist = {src:0}
 
-        while queue and targets_v:
-            u = queue.popleft()
-            targets_v.discard(u)
+        while queue and dest_v:
+            u = queue.pop(0)
             for v in self._adj_list[u]:
                 if v not in dist:
                     dist[v] = dist[u] + 1
                     queue.append(v)
+                    dest_v.discard(v)
                     if pred is not None:
                         pred[v] = u
         return dist
@@ -323,28 +323,28 @@ class Graph:
         :return : dictionary of distances between the source vertex and all the other vertices
         """
         if targets_v is None:
-            targets_v = set([None])
+            dest_v = set([None])
         else:
-            targets_v = set(targets_v)
+            dest_v = set(targets_v)
         dist = {}
         processed = defaultdict(lambda: float('inf'))
         queue = []
         heapq.heappush(queue, (0, src))
-        with tqdm() as pbar:
-            while queue and targets_v:
-                pbar.update(1)
-                (d, u) = heapq.heappop(queue)
-                if u in dist:
-                    continue
-                dist[u] = d
-                targets_v.discard(u)
-                for v in self._adj_list[u]:
-                    if v not in dist:
-                        if processed[v] > dist[u] + 1:
-                            processed[v] = dist[u] + 1
-                            if pred is not None:
-                                pred[v] = u
-                            heapq.heappush(queue, (processed[v], v))
+        # with tqdm() as pbar:
+        while queue and dest_v:
+            # pbar.update(1)
+            (d, u) = heapq.heappop(queue)
+            if u in dist:
+                continue
+            dist[u] = d
+            for v in self._adj_list[u]:
+                if v not in dist:
+                    if processed[v] > dist[u] + 1:
+                        processed[v] = dist[u] + 1
+                        heapq.heappush(queue, (processed[v], v))
+                        dest_v.discard(v)
+                        if pred is not None:
+                            pred[v] = u
         return dist
                 
     
@@ -378,16 +378,20 @@ class Graph:
         :return : dictionary of distances; src_vertex: {all_vertices: dist}
         """
         distances = dict()
-        if vertices is None:
-            for v in self._adj_list:
-                distances[v] = self.shortest_path(v, how=how)
-        else:
-            if only_targets:
-                for v in vertices:
-                    distances[v] = self.shortest_path(v, targets_v=vertices, how=how)
-            else:
-                for v in vertices:
+        with tqdm() as pbar:
+            if vertices is None:
+                for v in self._adj_list:
                     distances[v] = self.shortest_path(v, how=how)
+                    pbar.update(1)
+            else:
+                if only_targets:
+                    for v in vertices:
+                        distances[v] = self.shortest_path(v, targets_v=vertices, how=how)
+                        pbar.update(1)
+                else:
+                    for v in vertices:
+                        distances[v] = self.shortest_path(v, how=how)
+                        pbar.update(1)
         return distances
 
 
@@ -400,13 +404,13 @@ class Graph:
 
         :return : list of categories' names sorted by their distances from the source category
         """
-        cat_vert = categories.pop(category, None)
+        cat_vert = categories.copy().pop(category, None)
         v_dist = self.all_pairs_shortest_path(cat_vert)
         cat_dist = np.zeros(len(categories))
         cat_names = []
         for idx, c in enumerate(categories.keys()):
             cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories[c] ]))
-            cat_names.append(c)
+            cat_names.append((c, cat_dist[idx]))
         return list(np.array(cat_names)[np.argsort(cat_dist)])
     
 
