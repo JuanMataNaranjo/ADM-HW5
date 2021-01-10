@@ -367,7 +367,7 @@ class Graph:
         return algorithm(src, targets_v=targets_v)
         
 
-    def all_pairs_shortest_path(self, vertices=None, how='bfs'):
+    def all_pairs_shortest_path(self, vertices=None, only_targets=False, how='bfs'):
         """
         Compute the shortest paths between a set of vertices and all the other vertices in the graph.
 
@@ -382,8 +382,12 @@ class Graph:
             for v in self._adj_list:
                 distances[v] = self.shortest_path(v, how=how)
         else:
-            for v in vertices:
-                distances[v] = self.shortest_path(v, how=how)
+            if only_targets:
+                for v in vertices:
+                    distances[v] = self.shortest_path(v, targets_v=vertices, how=how)
+            else:
+                for v in vertices:
+                    distances[v] = self.shortest_path(v, how=how)
         return distances
 
 
@@ -417,7 +421,7 @@ class Graph:
         :return : new WeightedGraph instance
         """
         if distances is None:
-            distances = self.all_pairs_shortest_path(vertices, how='bfs')
+            distances = self.all_pairs_shortest_path(vertices, only_targets=True, how='bfs')
         wg = WeightedGraph()
         for u in distances.keys():
             wg.add_vertex(u)
@@ -436,7 +440,7 @@ class Graph:
 
         :return : 
         """
-        distances = self.all_pairs_shortest_path(cat_vertices)
+        distances = self.all_pairs_shortest_path(cat_vertices, only_targets=True)
         src = -1
         min_dist = float('inf')
         for v in distances.keys():
