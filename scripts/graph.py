@@ -11,55 +11,9 @@ import plotly.express as plty
 from tqdm import tqdm
 
 try:
-    import functionality as fn
-except:
     import scripts.functionality as fn
-
-
-
-class Vertex:
-    """
-    Class to handle the vertices of a graph. 
-    Product of a previous implementation, probably garbage code.
-    """
-
-    def __init__(self, name):
-        self.name = name
-        self.dist = float('inf')
-        self.pred = None
-
-
-    @classmethod
-    def from_list(cls, list_):
-        return {v: cls(v) for v in list_}
-
-
-    def __lt__(self, other):
-        return self.dist < other.dist
-
-    
-    def __le__(self, other):
-        return self.dist <= other.dist
-
-
-    def __eq__(self, other):
-        return self.dist == other.dist
-
-
-    def __add__(self, other):
-        return self.dist + 1
-
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-    def __repr__(self):
-        return self.__str__()
-
-
-    def __str__(self):
-        return f'{self.name}: dist={self.dist}, pred={self.pred}'
+except:
+    import functionality as fn
 
 
 class Graph:
@@ -68,12 +22,14 @@ class Graph:
         """
         Initialize the Graph object
 
-        :attribute edges : dictionary of vertices (keys) to sets of vertices (values)
-        :attribute induced_subgraph:
+        :attribute _adj_list : dictionary of vertices (keys) to sets of vertices (values)
+        :attribute _residual_graph:
+        :attribute _capacity:
         """
         self._adj_list = defaultdict(set)
         self._residual_graph = defaultdict(set)
         self._capacity = defaultdict(dict)
+
 
     @classmethod
     def from_dict(cls, dict_):
@@ -92,6 +48,7 @@ class Graph:
                                     # without this step, a sink node wouldn't appear in g._adj_list
         return g
 
+
     @classmethod
     def from_dict_weighted(cls, dict_):
         """
@@ -103,6 +60,7 @@ class Graph:
         g = cls()
         return g
 
+
     @property
     def n_vertices_(self):
         """
@@ -110,13 +68,14 @@ class Graph:
         """
         return len(self._adj_list)
 
+
     @property
     def n_edges_(self):
         """
         Read-only property, number of edges in the graph
         """
         n = 0
-        for v in self._adj_list:
+        for v in self._adj_list.keys():
             n += len(self._adj_list[v]) 
         return n
 
@@ -155,17 +114,17 @@ class Graph:
             else:
                 return {i: edge for i, edge in enumerate(edge_list)}
 
+
     def add_edge(self, v, u):
         """
         Add an edge to the graph
 
         :param v : source vertex
         :param u : destination vertex
-
         :return : 
         """
         self._adj_list[v].add(u)
-        self.add_vertex(u)
+        self.add_vertex(u)  # add destination vertex if not present
 
 
     def add_vertex(self, v):
@@ -173,10 +132,10 @@ class Graph:
         Add a vertex to the graph
 
         :param v : new vertex
-        
         :return : 
         """
-        self._adj_list[v]
+        self._adj_list[v]   # add vertex to defaultdict
+
 
     @staticmethod
     def from_edges_to_graph(edges):
@@ -190,14 +149,15 @@ class Graph:
         for item in edges:
             dict_stupid[item[0]].update([item[1]])
 
+
     def in_degree(self, v=None):
         """
-        Compute the in-degree of a node v
+        Compute the in-degree of a node v or the in-degree of all the nodes in the graph if v==None.
 
-        :param v : a node of the graph
-        :return in_d : int
+        :param v : a node of the graph or None
+        :return : int
         """
-        if v is None:
+        if v is None: # compute the in-degree of all the vertices in the graph
             degrees = defaultdict.fromkeys(self._adj_list.keys(), 0)
             for v in degrees:
                 for u in self._adj_list[v]:
@@ -205,33 +165,35 @@ class Graph:
             return dict(degrees)
         else:
             in_d = 0
-            for u in self._adj_list:
+            for u in self._adj_list.keys():
                 if v in self._adj_list[u]:
                     in_d += 1
             return in_d
 
+
     def out_degree(self, v=None):
         """
-        Compute the out-degree of a node v
+        Compute the out-degree of a node v or the out-degree of all the nodes in the graph if v==None.
 
-        :param v : a node of the graph
+        :param v : a node of the graph or None
         :return  : int
         """
-        if v is None:
+        if v is None: # compute the out-degree of all the vertices in the graph
             degrees = dict.fromkeys(self._adj_list.keys(), 0)
             for v in degrees:
                 degrees[v] = len(self._adj_list[v])
             return degrees
         return len(self._adj_list[v])
 
+
     def degree(self, v=None):
         """
-        Compute the degree of a node v
+        Compute the degree of a node v or 
 
         :param v : a node of the graph
         :return  : int
         """
-        if v is None:
+        if v is None: # compute the degree of all the vertices in the graph
             in_deg = self.in_degree()
             out_deg = self.out_degree()
             degrees = dict.fromkeys(self._adj_list.keys(), 0)
@@ -240,6 +202,7 @@ class Graph:
             return degrees
         return self.in_degree(v) + self.out_degree(v)
 
+
     def degree_distro(self, normalize=False):
         """
         Return the degree distribution of the graph
@@ -247,14 +210,13 @@ class Graph:
         :param normalize : normalize the degree distribution
         :return : degree d to number of vertices with degree d, defaultdict
         """
-        degree_dist = Counter(self.degree().values())
+        degree_dist = Counter(self.degree().values()) # count the number of vertices having the degree d
         if normalize:
             n_v = self.n_vertices_
-            degree_dist = {d:round(degree_dist[d] / n_v, 8) for d in degree_dist}
+            degree_dist = {d:round(degree_dist[d] / n_v, 8) for d in degree_dist} # compute the frequencies of the degrees
         return dict(degree_dist)
 
     
-    # TODO: make the function more flexible, i.e. allow to control and change more parameters, provide more visualizations options
     def plot_degree_distro(self, normalize=True, log=True, interval=None):
         """
         Plot the degree distribution of the graph
@@ -284,21 +246,19 @@ class Graph:
 
     def _bfs(self, src, targets_v=None, pred=None):
         """
-        Function to compute the bfs at any starting point
+        Internal routine to compute the path from a source vertex to all the the vertices of the graph using a Breadth-First-Search approach.
 
-        :param src : Initial page
+        :param src : initial vertex
         :param targets_v : vertices of interest; the function stops when all the vertices in targets_v have been explored
         :param pred : dictionary of vertex:predecessor
-
         :return : dictionary of distances between the source vertex and all the other vertices
         """
         if targets_v is None:
-            dest_v = set([None])
+            dest_v = set([None]) # set a fictitious target and compute the BFS on the entire vertex set
         else:
             dest_v = set(targets_v)
         queue = deque([src])
         dist = {src:0}
-
         while queue and dest_v:
             u = queue.popleft()
             for v in self._adj_list[u]:
@@ -314,25 +274,22 @@ class Graph:
     def _dijkstra(self, src, targets_v=None, pred=None):
         """
         Internal routine to compute the shortest paths from a source according to the Dijkstra algorithm.
-        Implementation only for unweighted graphs
+        Implementation only for unweighted graphs.
 
         :param src : source vertex
         :param targets_v : vertices of interest; the function stops when all the vertices in targets_v have been explored
         :param pred : dictionary of vertex:predecessor
-
         :return : dictionary of distances between the source vertex and all the other vertices
         """
         if targets_v is None:
-            dest_v = set([None])
+            dest_v = set([None]) # set a fictitious target and compute the BFS on the entire vertex set
         else:
             dest_v = set(targets_v)
         dist = {}
         processed = defaultdict(lambda: float('inf'))
         queue = []
         heapq.heappush(queue, (0, src))
-        # with tqdm() as pbar:
         while queue and dest_v:
-            # pbar.update(1)
             (d, u) = heapq.heappop(queue)
             if u in dist:
                 continue
@@ -342,7 +299,7 @@ class Graph:
                     if processed[v] > dist[u] + 1:
                         processed[v] = dist[u] + 1
                         heapq.heappush(queue, (processed[v], v))
-                        dest_v.discard(v)
+                        dest_v.discard(v) # remove v from the unvisited targets if v is a target vertex
                         if pred is not None:
                             pred[v] = u
         return dist
@@ -356,9 +313,8 @@ class Graph:
         :param targets_v (optional) : vertices of interest; the function stops when all the vertices in targets_v have been explored
         :param rec_path (optional) : save the predecessor of each node
         :param how : algorithm for computing the shortest paths; 'bfs' or 'dijkstra'
-
-        :return : dictionary of distances between the source vertex and all the other vertices
-        :return : if rec_path==True, return also a dictionary of vertices predecessors
+        :return : dictionary of distances between the source vertex and all the other vertices.
+                If rec_path==True, return also a dictionary of vertices predecessors
         """
         algorithm = {'bfs':self._bfs, 'dijkstra':self._dijkstra}[how]
         if rec_path:
@@ -373,8 +329,8 @@ class Graph:
 
         :param vertices : subset of vertices in the graph from which compute the shortest path;
                         if vertices==None, compute the the shortest paths between each pair of vertices in the graph.
+        :param only_targets : if True, compute the shortest paths only between the vertices in vertices 
         :param how : algorithm for computing the shortest paths; 'bfs' or 'dijkstra'
-
         :return : dictionary of distances; src_vertex: {all_vertices: dist}
         """
         distances = dict()
@@ -389,36 +345,15 @@ class Graph:
                 for v in tqdm(vertices):
                     distances[v] = self.shortest_path(v, how=how)
         return distances
-
-
-    def category_distance(self, category, categories):
-        """
-        Compute the distances between a given category and all the others.
-
-        :param category : category (name) from which compute the distances
-        :param categories : dictionary of the categories in the graph
-
-        :return : list of categories' names sorted by their distances from the source category
-        """
-        categories_copy = categories.copy()
-        cat_vert = categories_copy.pop(category, None)
-        v_dist = self.all_pairs_shortest_path(cat_vert)
-        cat_dist = np.zeros(len(categories_copy))
-        cat_names = []
-        for idx, c in enumerate(categories_copy.keys()):
-            cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories_copy[c] ]))
-            cat_names.append((c, cat_dist[idx]))
-        return list(np.array(cat_names)[np.argsort(cat_dist)])
     
 
     def dist_weighted_graph(self, vertices=None, distances=None):
         """
-        Compute a new weighted graph having the vertices in vertices (in the graph if vertices is None)
-        connected by edges weighted with the minimum distsnce between each pair of vertices
+        Compute a new weighted graph having the vertices in vertices (or in the graph if vertices is None)
+        connected by edges weighted with the minimum distance between each pair of vertices
 
         :param vertices (optional) : subset of vertices in the graph
         :param distances (optional) : dictionary of precomputed distances
-
         :return : new WeightedGraph instance
         """
         if distances is None:
@@ -432,28 +367,27 @@ class Graph:
         return wg
 
 
-    def minimum_cat_walk(self, cat_vertices):
+    def minimum_cat_walk(self, cat_vertices): # Question 3
         """
         Compute an approximation (if possible) of the shortest walk across all the vertices in cat_vertices,
-        starting from the most central vertex in cat_vertices. Closeness is assumed as the metric of centrality.
+        starting from the most central vertex in cat_vertices. Vertex in-degree is assumed as the metric of centrality.
 
         :param cat_vertices : vertices in the target category
-
         :return : 
         """
         print('Calculating the distances between each pair of vertices in the graph...')
         distances = self.all_pairs_shortest_path(cat_vertices, only_targets=True)
-        print('Calculating the source vertex according to the closeness centrality measure...')
+        print('Calculating the source vertex according to the in-degree centrality measure...')
         src = -1
-        min_dist = float('inf')
-        for v in distances.keys():
-            dist_v = 0
-            for u in distances[v].keys():
-                if u in distances.keys():
-                    dist_v += distances[v][u]
-            if dist_v < min_dist:
-                src = v
-                min_dist = dist_v
+        max_indegree = 0
+        for v in cat_vertices:
+            v_indegree = 0
+            for u in distances.keys():
+                if v in distances[u]: # there is an edge from u to v
+                    v_indegree += 1
+            if v_indegree > max_indegree:
+                src = v # save the vertex with the maximum in-degree so far
+                max_indegree = v_indegree
         wg = self.dist_weighted_graph(distances=distances)
         cost = wg.nearest_neighbor(src)
         print(f'The source vertex is:\t{src}')
@@ -461,6 +395,30 @@ class Graph:
             print(f'The cost of the approximated minimum walk is:\t{cost}')
         else:
             print('Not possible!')
+
+
+    def category_distance(self, category, categories, show_dist=False): # Question 5
+        """
+        Compute the distances between a given category and all the others.
+
+        :param category : category (name) from which compute the distances
+        :param categories : dictionary of the categories in the graph
+        :param show_dist : if True, return a list of (category_name, distance_from_source)
+        :return : list of categories' names sorted by their distances from the source category
+        """
+        categories_copy = categories.copy() # make a copy to avoid modifing the original dictionary of categories
+        cat_vert = categories_copy.pop(category, None) # remove the source category from the target categories dictionary
+        v_dist = self.all_pairs_shortest_path(cat_vert) # compute the shortest paths between all the vertices in the graph
+        cat_dist = np.zeros(len(categories_copy)) # numpy array of category distances
+        cat_names = []
+        for idx, c in enumerate(categories_copy.keys()):
+            # consider the distances from the source vertices of the vertices of each category and take the median
+            cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories_copy[c] ]))
+            if show_dist: 
+                cat_names.append((c, cat_dist[idx]))
+            else:
+                cat_names.append(c)
+        return list(np.array(cat_names)[np.argsort(cat_dist)]) # sort the categories according to their median distance
 
 
     # TODO: How can we make this function not static (graph changes constantly and don't want to chaneg the classes
@@ -502,11 +460,6 @@ class Graph:
 
         return contracted
 
-    def __repr__(self):
-        """
-        Represent the graph as the list of its edges
-        """
-        return str(self.get_edges())
 
     def plot_graph(self, with_labels=True, node_size=100):
         """
@@ -853,6 +806,15 @@ class Graph:
                 page_rank_score_t_1 = {}
 
         return dict(sorted(page_rank_score_t_1.items(), key=lambda item: item[1], reverse=True))
+        
+    
+    def __repr__(self):
+        """
+        Represent the graph as the list of its edges
+        """
+        return str(self.get_edges())
+
+
 
 class WeightedGraph(Graph):
 
@@ -862,7 +824,12 @@ class WeightedGraph(Graph):
     
     def add_edge(self, v, u, weight):
         """
+        Add an edge to the graph
 
+        :param v : source vertex
+        :param u : destination vertex
+        :param weight : weight of the edge between v and u
+        :return : 
         """
         self._adj_list[v][u] = weight
         self.add_vertex(u)
@@ -871,6 +838,7 @@ class WeightedGraph(Graph):
     def get_edges(self, output='tuple'):
         """
         Get the edges of the graph
+
         :param output: Output can be a list of tuples ('tuple'), a list of lists ('list') or a dictionary with lists
             ('dict')
         :return : list of (source, destination, weight) tuples
@@ -890,7 +858,6 @@ class WeightedGraph(Graph):
         Compute the shortest walk from src across all the vertices in the graph using the nearest neighbor heuristic
 
         :param src: start vertex
-
         :return : cost of the approximated minimum walk; return float('inf') if no walk is found
         """
         unvisited = set(self._adj_list.keys())
@@ -910,42 +877,3 @@ class WeightedGraph(Graph):
         if unvisited:
             cost = float('inf')
         return cost
-
-    
-    # TODO: probably useless method
-    def to_undirected(self):
-        """
-        Convert a directed graph into an undirected one.
-        """
-        wg = WeightedGraph()
-        w = -10000
-        for v in self._adj_list.keys():
-            wg.add_edge(v, v*-1, w)
-            wg.add_edge(v*-1, v, w)
-        for v in self._adj_list.keys():
-            for u in self._adj_list[v]:
-                wg.add_edge(v*-1, u, self._adj_list[v][u])
-                wg.add_edge(u, v*-1, self._adj_list[v][u])
-        return wg
-
-
-    # TODO: probably garbage
-    def mst_prim(self, src):
-        """
-        Compute the Minimum spanning tree for an undirected graph.
-        """
-        processed = defaultdict(lambda: float('inf'))
-        predecessors = {}
-        dist = {}
-        queue = []
-        heapq.heappush(queue, (0, src, None))
-        while queue:
-            (d, u, pred) = heapq.heappop(queue)
-            dist[u] = d
-            predecessors[u] = pred
-            for v in self._adj_list[u].keys():
-                if v not in dist:
-                    if dist[u] + self._adj_list[u][v] < processed[v]:
-                        processed[v] = dist[u] + self._adj_list[u][v]
-                        heapq.heappush(queue, (processed[v], v, u))
-        return sum(dist.values())
