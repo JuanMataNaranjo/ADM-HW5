@@ -292,19 +292,19 @@ class Graph:
         :return : dictionary of distances between the source vertex and all the other vertices
         """
         if targets_v is None:
-            targets_v = set([None])
+            dest_v = set([None])
         else:
-            targets_v = set(targets_v)
+            dest_v = set(targets_v)
         queue = deque([src])
         dist = {src:0}
 
-        while queue and targets_v:
+        while queue and dest_v:
             u = queue.popleft()
-            targets_v.discard(u)
             for v in self._adj_list[u]:
                 if v not in dist:
                     dist[v] = dist[u] + 1
                     queue.append(v)
+                    dest_v.discard(v)
                     if pred is not None:
                         pred[v] = u
         return dist
@@ -322,28 +322,28 @@ class Graph:
         :return : dictionary of distances between the source vertex and all the other vertices
         """
         if targets_v is None:
-            targets_v = set([None])
+            dest_v = set([None])
         else:
-            targets_v = set(targets_v)
+            dest_v = set(targets_v)
         dist = {}
         processed = defaultdict(lambda: float('inf'))
         queue = []
         heapq.heappush(queue, (0, src))
-        with tqdm() as pbar:
-            while queue and targets_v:
-                pbar.update(1)
-                (d, u) = heapq.heappop(queue)
-                if u in dist:
-                    continue
-                dist[u] = d
-                targets_v.discard(u)
-                for v in self._adj_list[u]:
-                    if v not in dist:
-                        if processed[v] > dist[u] + 1:
-                            processed[v] = dist[u] + 1
-                            if pred is not None:
-                                pred[v] = u
-                            heapq.heappush(queue, (processed[v], v))
+        # with tqdm() as pbar:
+        while queue and dest_v:
+            # pbar.update(1)
+            (d, u) = heapq.heappop(queue)
+            if u in dist:
+                continue
+            dist[u] = d
+            for v in self._adj_list[u]:
+                if v not in dist:
+                    if processed[v] > dist[u] + 1:
+                        processed[v] = dist[u] + 1
+                        heapq.heappush(queue, (processed[v], v))
+                        dest_v.discard(v)
+                        if pred is not None:
+                            pred[v] = u
         return dist
                 
     
@@ -366,7 +366,7 @@ class Graph:
         return algorithm(src, targets_v=targets_v)
         
 
-    def all_pairs_shortest_path(self, vertices=None, how='bfs'):
+    def all_pairs_shortest_path(self, vertices=None, only_targets=False, how='bfs'):
         """
         Compute the shortest paths between a set of vertices and all the other vertices in the graph.
 
@@ -378,11 +378,15 @@ class Graph:
         """
         distances = dict()
         if vertices is None:
-            for v in self._adj_list:
+            for v in tqdm(self._adj_list):
                 distances[v] = self.shortest_path(v, how=how)
         else:
-            for v in vertices:
-                distances[v] = self.shortest_path(v, how=how)
+            if only_targets:
+                for v in tqdm(vertices):
+                    distances[v] = self.shortest_path(v, targets_v=vertices, how=how)
+            else:
+                for v in tqdm(vertices):
+                    distances[v] = self.shortest_path(v, how=how)
         return distances
 
 
@@ -395,13 +399,14 @@ class Graph:
 
         :return : list of categories' names sorted by their distances from the source category
         """
-        cat_vert = categories.pop(category, None)
+        categories_copy = categories.copy()
+        cat_vert = categories_copy.pop(category, None)
         v_dist = self.all_pairs_shortest_path(cat_vert)
-        cat_dist = np.zeros(len(categories))
+        cat_dist = np.zeros(len(categories_copy))
         cat_names = []
-        for idx, c in enumerate(categories.keys()):
-            cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories[c] ]))
-            cat_names.append(c)
+        for idx, c in enumerate(categories_copy.keys()):
+            cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories_copy[c] ]))
+            cat_names.append((c, cat_dist[idx]))
         return list(np.array(cat_names)[np.argsort(cat_dist)])
     
 
@@ -416,7 +421,7 @@ class Graph:
         :return : new WeightedGraph instance
         """
         if distances is None:
-            distances = self.all_pairs_shortest_path(vertices, how='bfs')
+            distances = self.all_pairs_shortest_path(vertices, only_targets=True, how='bfs')
         wg = WeightedGraph()
         for u in distances.keys():
             wg.add_vertex(u)
@@ -428,14 +433,16 @@ class Graph:
 
     def minimum_cat_walk(self, cat_vertices):
         """
-        Compute ab approximation (if possible) of the shortest walk across all the vertices in cat_vertices,
+        Compute an approximation (if possible) of the shortest walk across all the vertices in cat_vertices,
         starting from the most central vertex in cat_vertices. Closeness is assumed as the metric of centrality.
 
         :param cat_vertices : vertices in the target category
 
         :return : 
         """
-        distances = self.all_pairs_shortest_path(cat_vertices)
+        print('Calculating the distances between each pair of vertices in the graph...')
+        distances = self.all_pairs_shortest_path(cat_vertices, only_targets=True)
+        print('Calculating the source vertex according to the closeness centrality measure...')
         src = -1
         min_dist = float('inf')
         for v in distances.keys():
@@ -448,9 +455,9 @@ class Graph:
                 min_dist = dist_v
         wg = self.dist_weighted_graph(distances=distances)
         cost = wg.nearest_neighbor(src)
-        print(src)
+        print(f'The source vertex is:\t{src}')
         if cost < float('inf'):
-            print(cost)
+            print(f'The cost of the approximated minimum walk is:\t{cost}')
         else:
             print('Not possible!')
 
@@ -898,7 +905,7 @@ class WeightedGraph(Graph):
         cost = 0
         v = src
         while unvisited:
-            unvisited.remove(v)
+            unvisited.discard(v)
             min_ = [0, float('inf')]
             for u in self._adj_list[v].keys():
                 if u in unvisited and self._adj_list[v][u] < min_[1]:

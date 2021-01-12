@@ -144,3 +144,17 @@ def uniformly_pick_article_category(dictionary):
         new_dict[k] = random.choice(v)
 
     return new_dict
+
+
+def apply_category_constraint(category_dict):
+    """
+    Remove the categories that have less than 5000 pages or more than 30000
+
+    :param category_dict : dictionary of categories
+    :return : filtered dictionary of categories
+    """
+    categories = list(category_dict.keys())
+    for c in categories:
+        if not (5000 <= len(category_dict[c]) <= 30000):
+            category_dict.pop(c)
+    return category_dict
