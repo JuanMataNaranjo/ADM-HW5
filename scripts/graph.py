@@ -72,7 +72,6 @@ class Graph:
         :attribute induced_subgraph:
         """
         self._adj_list = defaultdict(set)
-        self._residual_graph = defaultdict(set)
         self._capacity = defaultdict(dict)
 
     @classmethod
@@ -518,14 +517,13 @@ class Graph:
 
 
     # Question 2
-    def pages_in_click(self, initial_page, num_clicks, print_=False):
+    def pages_in_click(self, initial_page, num_clicks):
         """
-        Given a graph, an initial starting point and the number of clicks, how many, and which pages will we be able to
+        Given an initial starting point and the number of clicks, how many pages, and which ones will we be able to
         visit?
 
         :param initial_page: Page we will be starting out from
         :param num_clicks: Number of clicks we are willing to do
-        :param print_: Bool to visualize some of the outputs or not
         :return: Pages seen  with the given number of clicks
         """
 
@@ -545,8 +543,6 @@ class Graph:
             last_nodes = set()
             # Loop over all the pages of the current click
             for node in queue:
-                if print_:
-                    print(node)
                 # If a given node has target node, include the out-nodes into the new_queue list
                 if bool(self._adj_list[node]):
                     new_queue.update(self._adj_list[node])
@@ -554,9 +550,6 @@ class Graph:
                 # for further inspection but we will have to consider it as an article that has been seen
                 else:
                     last_nodes.update([node])
-
-            if print_:
-                print(new_queue)
 
             # Update queue as the new pages to explore
             queue = new_queue
@@ -567,7 +560,7 @@ class Graph:
             clicks += 1
 
         # Return the unique pages
-        return set(pages_visited)
+        return list(set(pages_visited))
 
     def generate_induced_subgraph(self, vertices):
         """
@@ -583,9 +576,8 @@ class Graph:
 
         return Graph.from_dict(induced_subgraph)
 
-
     # Question 4
-    def build_residual_graph_capacity(self):
+    def build_capacity(self):
         """
         The max-flow method requires a residual graph to work. This can also be seen as an attribute of the class,
         therefore we will include it as a self.
@@ -593,14 +585,9 @@ class Graph:
         :return: Generate attribute
         """
         for k, v in self._adj_list.items():
-            self._residual_graph[k].update(v)
             self._capacity[k].update({k: 1 for k in v})
-            for i in v:
-                self._residual_graph[i].update([k])
-                self._capacity[i].update({k: 0})
 
-    @staticmethod
-    def compute_augmented_path(graph, capacity, source, sink):
+    def compute_augmented_path(self, capacity, source, sink):
         """
         Function to compute the augmented paths required for the max flow algo (which is equal to the min cut value)
         The idea behind computing this augmented  path is looking for a path that has not been visited before and with
@@ -609,6 +596,10 @@ class Graph:
         visited = set()
         queue = deque([source])
         parent_map = []
+        # If the augmented path cannot continue it can be because the node has already been visited or because it's
+        # capacity is smaller than zero. If the second is the case this might hint that this edge will need to be cut
+        # in order to disconnect two nodes
+        funnel_node = []
 
         count = 0
         while queue:
@@ -616,21 +607,24 @@ class Graph:
             node = queue.popleft()
             if node not in visited:
                 visited.update([node])
-                neighbours = graph[node]
+                neighbours = self._adj_list[node]
                 for neighbour in neighbours:
                     if (neighbour not in visited) & (capacity[node][neighbour] > 0):
                         queue.append(neighbour)
                         parent_map.append([neighbour, node])
                         if neighbour == sink:
-                            return parent_map
+                            return parent_map, funnel_node
                     else:
+                        if (capacity[node][neighbour] == 0) & (node != source):
+                            funnel_node.append([node, neighbour])
                         continue
+        return None, funnel_node
 
     @staticmethod
     def construct_flow(parent_map, sink):
         """
-        Given a parent map (output of the compute augmented path function) contruct a flow
-
+        Given a parent map (output of the compute augmented path function) construct a flow that goes from the sink to
+        the initial point
         """
         flow = [sink]
         for row in parent_map[::-1]:
@@ -649,7 +643,6 @@ class Graph:
         flow_value = min([capacity[flow[i]][flow[i + 1]] for i in range(0, len(flow) - 1)])
         for i in range(len(flow) - 1):
             capacity[flow[i]][flow[i + 1]] = capacity[flow[i]][flow[i + 1]] - flow_value
-            capacity[flow[i + 1]][flow[i]] = capacity[flow[i + 1]][flow[i]] + flow_value
 
         return flow_value, capacity
 
@@ -658,19 +651,25 @@ class Graph:
         Function to compute the max flow over a given graph, capacity, initial source value and sink value
 
         """
-        self.build_residual_graph_capacity()
+        self.build_capacity()
 
         max_flow = 0
         capacity = copy.deepcopy(self._capacity)
         flow_storage = []
 
         while True:
-            augmented_path = self.compute_augmented_path(graph=self._residual_graph, capacity=capacity,
-                                                         source=source, sink=sink)
+            augmented_path, funnel_node = self.compute_augmented_path(capacity=capacity,
+                                                                      source=source, sink=sink)
             if not augmented_path:
-                edges_to_cut = [(str(flow_path[-2]) + ' --> ' + str(flow_path[-1])) for flow_path in flow_storage]
-                return edges_to_cut
-                # return max_flow, flow_storage
+                funnel_edge = [(str(edge[0]) + ' --> ' + str(edge[1])) for edge in funnel_node]
+                test = []
+                for edge_funnel in funnel_node:
+                    for edge_storage in flow_storage:
+                        if any([edge_storage[i:i + 2] == edge_funnel for i in range(len(edge_storage) - 1)]):
+                            test.append(edge_storage)
+                final = [x for x in flow_storage if x not in test]
+                other_edge = [(str(flow_path[-2]) + ' --> ' + str(flow_path[-1])) for flow_path in final]
+                return funnel_edge + other_edge
             flow = self.construct_flow(augmented_path, sink)
             flow_storage.append(flow)
             flow_value, capacity = self.compute_flow_adjust_capacity(flow, capacity)
@@ -776,15 +775,16 @@ class Graph:
         # TODO: Implement such that we can also have a weighted graph
         # return Graph.from_dict_weighted(category_adj_list)
 
-    def page_rank(self, weighted_graph, damping_factor=.85, max_iter=100, tolerance=0.01):
+    def page_rank(self, weighted_graph, damping_factor=.85, max_iter=100, tolerance=0.01, top=None):
         """
         Method that computes the page rank of a given weigthed and directed graph
 
         :param weighted_graph: Weigthed graph
         :param damping_factor: Probability of stopping to surf at any given moment (popular to include now a days to
-            model the probability that any user immediatly stops using internet)
-        :param max_iter: Maximum iterations to find a good convergance of the page rank score
+            model the probability that any user immediately stops using internet)
+        :param max_iter: Maximum iterations to find a good convergence of the page rank score
         :param tolerance: Tolerance level required for the iteration to stop earlier
+        :param top:  Return top categories (int) based on page rank or return all (None)
         :return: Page Rank score for all nodes
 
         Example:
@@ -844,8 +844,16 @@ class Graph:
             if i != max_iter:
                 page_rank_score_t = page_rank_score_t_1
                 page_rank_score_t_1 = {}
-
-        return dict(sorted(page_rank_score_t_1.items(), key=lambda item: item[1], reverse=True))
+        final_dict = dict(sorted(page_rank_score_t_1.items(), key=lambda item: item[1], reverse=True))
+        if not top:
+            return final_dict
+        else:
+            top_dict = {}
+            for i, k in enumerate(final_dict):
+                top_dict[k] = final_dict[k]
+                if i == top:
+                    break
+            return pd.DataFrame.from_dict(top_dict, orient='index', columns=['Page Rank Score'])
 
 class WeightedGraph(Graph):
 
