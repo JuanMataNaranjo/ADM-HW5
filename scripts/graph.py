@@ -91,17 +91,6 @@ class Graph:
                                     # without this step, a sink node wouldn't appear in g._adj_list
         return g
 
-    @classmethod
-    def from_dict_weighted(cls, dict_):
-        """
-        Create a new Graph object from a dictionary with weighted edges
-
-        :param dict_ : dictionary of vertices (keys) to sets of vertices (values)
-        :return : new Graph instance
-        """
-        g = cls()
-        return g
-
     @property
     def n_vertices_(self):
         """
@@ -253,7 +242,8 @@ class Graph:
         return dict(degree_dist)
 
     
-    # TODO: make the function more flexible, i.e. allow to control and change more parameters, provide more visualizations options
+    # TODO: make the function more flexible, i.e. allow to control and change more parameters, provide more
+    #  visualizations options
     def plot_degree_distro(self, normalize=True, log=True, interval=None):
         """
         Plot the degree distribution of the graph
@@ -461,46 +451,6 @@ class Graph:
         else:
             print('Not possible!')
 
-
-    # TODO: How can we make this function not static (graph changes constantly and don't want to chaneg the classes
-    #  attribute)
-    @staticmethod
-    def get_random_edge(edges, source, sink):
-        """
-        Function that randomly returns two connected vertices
-
-        :param edges: List of list containing the edges over which to pick
-        :param source & sink: These are the two vertices which we want to disconnect, therefore they cannot be v2
-        (v2 is the node that will disappear so to say)
-        :return: two vertices
-        """
-
-        v1, v2 = random.choice(list(edges.values()))
-        while (v2 == source) | (v2 == sink):
-            v1, v2 = random.choice(list(edges.values()))
-
-        return v1, v2
-
-    @staticmethod
-    def contract_node(edges, v1, v2):
-        """
-        Function to contract two nodes into one. The logic is that we will delete the edge between two nodes, and
-        basically merge the node v2 into v1 (v1 will inherit all v2's edges).
-        """
-
-        # Make v1 inherit all of v2's edges
-        contracted = {}
-        for k, v in edges.items():
-            if v2 in v:
-                contracted[k] = [v1 if v2 == ele else ele for ele in v]
-            else:
-                contracted[k] = v
-
-        # Remove edges with same in and out node
-        contracted = {k: v for k, v in contracted.items() if v[0] != v[1]}
-
-        return contracted
-
     def __repr__(self):
         """
         Represent the graph as the list of its edges
@@ -569,6 +519,7 @@ class Graph:
         # Return the unique pages
         return list(set(pages_visited))
 
+    # Question 4
     def generate_induced_subgraph(self, vertices):
         """
         Given a set of vertices, compute it's induced subgraph
@@ -583,7 +534,6 @@ class Graph:
 
         return Graph.from_dict(induced_subgraph)
 
-    # Question 4
     def build_capacity(self):
         """
         The max-flow method requires a residual graph to work. This can also be seen as an attribute of the class,
@@ -682,81 +632,7 @@ class Graph:
             flow_value, capacity = self.compute_flow_adjust_capacity(flow, capacity)
             max_flow += flow_value
 
-    # TODO: This method only seems to work when the edges are weighted
-    # @staticmethod
-    # def find_min_cut(initial_graph, residual_graph):
-    #     """
-    #     Following the max flow logic, we can compute the set of minimum cut egdes by taking those edges which initially had
-    #     some kind of weight (different to 0), and after the max flow computation ended up having a weight of zero.
-    #
-    #     :param initial_graph: Initial graph with the correct capacities
-    #     :param residual_graph: Graph after obtaining the max flow, which we will compare against the first
-    #     :param plot: Bool to plot the edges required to be cut
-    #     :return: Set of edges to be cut
-    #     """
-    #     min_cut_edges = []
-    #     for key in initial_graph:
-    #         for sub_key in initial_graph[key]:
-    #             if (initial_graph[key][sub_key] > 0) & (residual_graph[key][sub_key] == 0):
-    #                 min_cut_edges.append([key, sub_key])
-    #     return min_cut_edges
-
-    # This method will not be used any more. We can deduce the exact edges needed to be cut from the min_max algorithm
-    def min_cut_kagler(self, source, sink, max_flow, iterations=20):
-        """
-        This method computes the exact edges that need to be removed in order to disconnect two pages. For this purpose
-        will help ourselves with the max_flow approach (which gives the exact number of edges that need to be deleted
-        for this to happen and also takes into account the fact that the graph is directed.
-        This function is just an approximation, but given that we have the real result we will try to match it
-        :param source: Article page we want to disconnect from sink
-        :param sink: Article page we want to disconnect from source
-        :param max_flow: Min Cut value
-        :param iterations: Number of iterations before we stop looking for set of edges
-        :return: Set of edges to delete
-        """
-
-        initial_edges = self.get_edges('dict')
-        champion_set = []
-
-        for iteration in range(iterations):
-            edges = copy.deepcopy(initial_edges)
-            while len(set(x for l in list(edges.values()) for x in l)) > 2:
-                v1, v2 = self.get_random_edge(edges, source, sink)
-                edges = self.contract_node(edges, v1, v2)
-            edges_candidate = list({k: initial_edges[k] for k, v in edges.items()}.values())
-            if iteration == 0:
-                heapq.heappush(champion_set, (-len(edges), edges_candidate))
-            else:
-                heapq.heappushpop(champion_set, (-len(edges), edges_candidate))
-            if len(edges) == max_flow:
-                result = list(heapq.heappop(champion_set)[0])
-                result[0] = -result[0]
-                return heapq.heappop(champion_set)
-            if iteration == iterations-1:
-                print('Max Flow and Kagler\'s algorithm do not converge')
-                print('The minimum number of edges required to remove to disconnect is: ', max_flow)
-                print('The best edges to do this are: ', heapq.heappop(champion_set)[1])
-
     # Question 6
-
-    # Probably garbage code
-    def category_model_network(self, article_category_dict):
-        """
-        Given a dictionary that maps article integer to category, return a graph class with the new category model
-        network. This network will mainly be used to later compute the page rank score for each category
-
-        :param article_category_dict: Dictionary that maps articles to categories
-        :return: New graph class with the nodes this time the categories, and the edges are links between categories
-            (one link between categories implies that at least one article of that category has a link to the other
-            category)
-        """
-
-        category_adj_list = defaultdict(set)
-        for k, v in self._adj_list.items():
-            category_adj_list[article_category_dict[k]].update(set([article_category_dict[node] for node in v]))
-
-        return Graph.from_dict(category_adj_list)
-
     def category_model_network_weighted(self, article_category_dict):
         """
         Given a dictionary that maps article integer to category, return a graph class with the new category model
@@ -861,6 +737,117 @@ class Graph:
                 if i == top:
                     break
             return pd.DataFrame.from_dict(top_dict, orient='index', columns=['Page Rank Score'])
+
+    # ===== Unused Methods =======
+    @staticmethod
+    def get_random_edge(edges, source, sink):
+        """
+        Function that randomly returns two connected vertices
+
+        :param edges: List of list containing the edges over which to pick
+        :param source & sink: These are the two vertices which we want to disconnect, therefore they cannot be v2
+        (v2 is the node that will disappear so to say)
+        :return: two vertices
+        """
+
+        v1, v2 = random.choice(list(edges.values()))
+        while (v2 == source) | (v2 == sink):
+            v1, v2 = random.choice(list(edges.values()))
+
+        return v1, v2
+
+    @staticmethod
+    def contract_node(edges, v1, v2):
+        """
+        Function to contract two nodes into one. The logic is that we will delete the edge between two nodes, and
+        basically merge the node v2 into v1 (v1 will inherit all v2's edges).
+        """
+
+        # Make v1 inherit all of v2's edges
+        contracted = {}
+        for k, v in edges.items():
+            if v2 in v:
+                contracted[k] = [v1 if v2 == ele else ele for ele in v]
+            else:
+                contracted[k] = v
+
+        # Remove edges with same in and out node
+        contracted = {k: v for k, v in contracted.items() if v[0] != v[1]}
+
+        return contracted
+
+    def category_model_network(self, article_category_dict):
+        """
+        Given a dictionary that maps article integer to category, return a graph class with the new category model
+        network. This network will mainly be used to later compute the page rank score for each category
+
+        :param article_category_dict: Dictionary that maps articles to categories
+        :return: New graph class with the nodes this time the categories, and the edges are links between categories
+            (one link between categories implies that at least one article of that category has a link to the other
+            category)
+        """
+
+        category_adj_list = defaultdict(set)
+        for k, v in self._adj_list.items():
+            category_adj_list[article_category_dict[k]].update(set([article_category_dict[node] for node in v]))
+
+        return Graph.from_dict(category_adj_list)
+
+    # This method will not be used any more. We can deduce the exact edges needed to be cut from the min_max algorithm
+    def min_cut_kagler(self, source, sink, max_flow, iterations=20):
+        """
+        This method computes the exact edges that need to be removed in order to disconnect two pages. For this purpose
+        will help ourselves with the max_flow approach (which gives the exact number of edges that need to be deleted
+        for this to happen and also takes into account the fact that the graph is directed.
+        This function is just an approximation, but given that we have the real result we will try to match it
+        :param source: Article page we want to disconnect from sink
+        :param sink: Article page we want to disconnect from source
+        :param max_flow: Min Cut value
+        :param iterations: Number of iterations before we stop looking for set of edges
+        :return: Set of edges to delete
+        """
+
+        initial_edges = self.get_edges('dict')
+        champion_set = []
+
+        for iteration in range(iterations):
+            edges = copy.deepcopy(initial_edges)
+            while len(set(x for l in list(edges.values()) for x in l)) > 2:
+                v1, v2 = self.get_random_edge(edges, source, sink)
+                edges = self.contract_node(edges, v1, v2)
+            edges_candidate = list({k: initial_edges[k] for k, v in edges.items()}.values())
+            if iteration == 0:
+                heapq.heappush(champion_set, (-len(edges), edges_candidate))
+            else:
+                heapq.heappushpop(champion_set, (-len(edges), edges_candidate))
+            if len(edges) == max_flow:
+                result = list(heapq.heappop(champion_set)[0])
+                result[0] = -result[0]
+                return heapq.heappop(champion_set)
+            if iteration == iterations - 1:
+                print('Max Flow and Kagler\'s algorithm do not converge')
+                print('The minimum number of edges required to remove to disconnect is: ', max_flow)
+                print('The best edges to do this are: ', heapq.heappop(champion_set)[1])
+
+    @staticmethod
+    def find_min_cut(initial_graph, residual_graph):
+        """
+        Following the max flow logic, we can compute the set of minimum cut egdes by taking those edges which initially had
+        some kind of weight (different to 0), and after the max flow computation ended up having a weight of zero.
+
+        :param initial_graph: Initial graph with the correct capacities
+        :param residual_graph: Graph after obtaining the max flow, which we will compare against the first
+        :param plot: Bool to plot the edges required to be cut
+        :return: Set of edges to be cut
+        """
+        min_cut_edges = []
+        for key in initial_graph:
+            for sub_key in initial_graph[key]:
+                if (initial_graph[key][sub_key] > 0) & (residual_graph[key][sub_key] == 0):
+                    min_cut_edges.append([key, sub_key])
+        return min_cut_edges
+
+
 
 class WeightedGraph(Graph):
 
