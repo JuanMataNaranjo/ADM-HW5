@@ -37,7 +37,7 @@ class Vertex:
     def __lt__(self, other):
         return self.dist < other.dist
 
-    
+
     def __le__(self, other):
         return self.dist <= other.dist
 
@@ -105,7 +105,7 @@ class Graph:
         """
         n = 0
         for v in self._adj_list:
-            n += len(self._adj_list[v]) 
+            n += len(self._adj_list[v])
         return n
 
 
@@ -125,7 +125,7 @@ class Graph:
         :return : list of vertices
         """
         return list(self._adj_list.keys())
-        
+
 
     def get_edges(self, output='tuple'):
         """
@@ -241,7 +241,7 @@ class Graph:
             degree_dist = {d:round(degree_dist[d] / n_v, 8) for d in degree_dist}
         return dict(degree_dist)
 
-    
+
     # TODO: make the function more flexible, i.e. allow to control and change more parameters, provide more
     #  visualizations options
     def plot_degree_distro(self, normalize=True, log=True, interval=None):
@@ -335,8 +335,8 @@ class Graph:
                         if pred is not None:
                             pred[v] = u
         return dist
-                
-    
+
+
     def shortest_path(self, src, targets_v=None, rec_path=False, how='bfs'):
         """
         Compute the shortest paths between the source vertex and all the vertices in the graph.
@@ -354,7 +354,7 @@ class Graph:
             pred = defaultdict(lambda: None)
             return algorithm(src, targets_v=targets_v, pred=pred), pred
         return algorithm(src, targets_v=targets_v)
-        
+
 
     def all_pairs_shortest_path(self, vertices=None, only_targets=False, how='bfs'):
         """
@@ -398,7 +398,7 @@ class Graph:
             cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories_copy[c] ]))
             cat_names.append((c, cat_dist[idx]))
         return list(np.array(cat_names)[np.argsort(cat_dist)])
-    
+
 
     def dist_weighted_graph(self, vertices=None, distances=None):
         """
@@ -490,7 +490,7 @@ class Graph:
         # articles that we can reach in the i+1th click
         queue = set([initial_page])
 
-        # Placeholder to keep track of the clicks we are doing
+        # Placeholder to keep track of the clicks we have done
         clicks = 0
         # Interrupt the loop once we reach the required number of clicks
         while clicks < num_clicks:
@@ -615,10 +615,12 @@ class Graph:
         flow_storage = []
 
         while True:
+            print('===================')
             augmented_path, funnel_node = self.compute_augmented_path(capacity=capacity,
                                                                       source=source, sink=sink)
+
             if not augmented_path:
-                funnel_edge = [(str(edge[0]) + ' --> ' + str(edge[1])) for edge in funnel_node]
+                funnel_edge = [(str(edge[0]) + ' --> ' + str(edge[1])) for edge in funnel_node][:max_flow]
                 test = []
                 for edge_funnel in funnel_node:
                     for edge_storage in flow_storage:
@@ -626,8 +628,11 @@ class Graph:
                             test.append(edge_storage)
                 final = [x for x in flow_storage if x not in test]
                 other_edge = [(str(flow_path[-2]) + ' --> ' + str(flow_path[-1])) for flow_path in final]
-                return funnel_edge + other_edge
+                edges_to_cut = funnel_edge + other_edge
+                return edges_to_cut, max_flow
+
             flow = self.construct_flow(augmented_path, sink)
+            print('Flow:', flow)
             flow_storage.append(flow)
             flow_value, capacity = self.compute_flow_adjust_capacity(flow, capacity)
             max_flow += flow_value
@@ -854,7 +859,7 @@ class WeightedGraph(Graph):
     def __init__(self):
         self._adj_list = defaultdict(dict)
 
-    
+
     def add_edge(self, v, u, weight):
         """
 
@@ -906,7 +911,7 @@ class WeightedGraph(Graph):
             cost = float('inf')
         return cost
 
-    
+
     # TODO: probably useless method
     def to_undirected(self):
         """
