@@ -296,11 +296,11 @@ class Graph:
             dest_v = set([None])
         else:
             dest_v = set(targets_v)
-        queue = [src]
+        queue = deque([src])
         dist = {src:0}
 
         while queue and dest_v:
-            u = queue.pop(0)
+            u = queue.popleft()
             for v in self._adj_list[u]:
                 if v not in dist:
                     dist[v] = dist[u] + 1
@@ -378,20 +378,16 @@ class Graph:
         :return : dictionary of distances; src_vertex: {all_vertices: dist}
         """
         distances = dict()
-        with tqdm() as pbar:
-            if vertices is None:
-                for v in self._adj_list:
-                    distances[v] = self.shortest_path(v, how=how)
-                    pbar.update(1)
+        if vertices is None:
+            for v in tqdm(self._adj_list):
+                distances[v] = self.shortest_path(v, how=how)
+        else:
+            if only_targets:
+                for v in tqdm(vertices):
+                    distances[v] = self.shortest_path(v, targets_v=vertices, how=how)
             else:
-                if only_targets:
-                    for v in vertices:
-                        distances[v] = self.shortest_path(v, targets_v=vertices, how=how)
-                        pbar.update(1)
-                else:
-                    for v in vertices:
-                        distances[v] = self.shortest_path(v, how=how)
-                        pbar.update(1)
+                for v in tqdm(vertices):
+                    distances[v] = self.shortest_path(v, how=how)
         return distances
 
 
@@ -404,12 +400,13 @@ class Graph:
 
         :return : list of categories' names sorted by their distances from the source category
         """
-        cat_vert = categories.copy().pop(category, None)
+        categories_copy = categories.copy()
+        cat_vert = categories_copy.pop(category, None)
         v_dist = self.all_pairs_shortest_path(cat_vert)
-        cat_dist = np.zeros(len(categories))
+        cat_dist = np.zeros(len(categories_copy))
         cat_names = []
-        for idx, c in enumerate(categories.keys()):
-            cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories[c] ]))
+        for idx, c in enumerate(categories_copy.keys()):
+            cat_dist[idx] = np.median(np.array([ v_dist[u][v] if v in v_dist[u] else float('inf') for u in cat_vert for v in categories_copy[c] ]))
             cat_names.append((c, cat_dist[idx]))
         return list(np.array(cat_names)[np.argsort(cat_dist)])
     
@@ -437,14 +434,16 @@ class Graph:
 
     def minimum_cat_walk(self, cat_vertices):
         """
-        Compute ab approximation (if possible) of the shortest walk across all the vertices in cat_vertices,
+        Compute an approximation (if possible) of the shortest walk across all the vertices in cat_vertices,
         starting from the most central vertex in cat_vertices. Closeness is assumed as the metric of centrality.
 
         :param cat_vertices : vertices in the target category
 
         :return : 
         """
+        print('Calculating the distances between each pair of vertices in the graph...')
         distances = self.all_pairs_shortest_path(cat_vertices, only_targets=True)
+        print('Calculating the source vertex according to the closeness centrality measure...')
         src = -1
         min_dist = float('inf')
         for v in distances.keys():
@@ -457,9 +456,9 @@ class Graph:
                 min_dist = dist_v
         wg = self.dist_weighted_graph(distances=distances)
         cost = wg.nearest_neighbor(src)
-        print(src)
+        print(f'The source vertex is:\t{src}')
         if cost < float('inf'):
-            print(cost)
+            print(f'The cost of the approximated minimum walk is:\t{cost}')
         else:
             print('Not possible!')
 
@@ -898,7 +897,7 @@ class WeightedGraph(Graph):
         cost = 0
         v = src
         while unvisited:
-            unvisited.remove(v)
+            unvisited.discard(v)
             min_ = [0, float('inf')]
             for u in self._adj_list[v].keys():
                 if u in unvisited and self._adj_list[v][u] < min_[1]:
