@@ -4,6 +4,8 @@ import os
 import json
 import random
 
+random.seed(123)
+
 
 def read_graph(filename='data/wikigraph_reduced.csv', output='dict'):
     """

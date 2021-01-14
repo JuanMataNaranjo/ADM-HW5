@@ -8,6 +8,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import plotly.express as plty
+import time
 from tqdm import tqdm
 
 try:
@@ -362,6 +363,7 @@ class Graph:
         :return : 
         """
         print('Calculating the distances between each pair of vertices in the graph...')
+        time.sleep(0.5) # add delay to allow the print(..) to complete before tqdm starts counting
         distances = self.all_pairs_shortest_path(cat_vertices, only_targets=True)
         print('Calculating the source vertex according to the in-degree centrality measure...')
         src = -1
@@ -472,7 +474,7 @@ class Graph:
     # Question 4
     def generate_induced_subgraph(self, vertices):
         """
-        Given a set of vertices, compute it's induced subgraph
+        Given a set of vertices, compute its induced subgraph
 
         :param vertices: Set of vertices
         :return: Store induced sub_graph in class
